@@ -5,37 +5,42 @@ from collections import deque
 import torch.nn as nn
 import torch.optim as optim
 from pathlib import Path
+import shutil
 import os
 import torch.nn.functional as F
 from typing import List
-#KEY constants
-MAXTILE = 32768
-BATCH_SIZE = 512
-MAXREWARD = 18 #Max reward is 2^18
-GRID_SIZE = 4
-FOLDER = "./data"
+from config import conf
+#initialize configuration
+Config = conf()
+BUFFER_SIZE = 512
 SAVE_FOLDER = "./ckpt"
-BUFFER_SIZE = 1024
 class Trainer:
     """Trainer class responsible for training the 2048 ai"""
-    def __init__(self,max_tile=MAXTILE,batch_size=BATCH_SIZE,grid_size=GRID_SIZE,folder=FOLDER,agent:RLAgent=None):
-        self.max_tile = MAXTILE
-        self.batch_size = BATCH_SIZE
-        self.grid_size = GRID_SIZE
-        self.folder = FOLDER
-        self.agent = agent
-        self.loss_fn = nn.L1Loss(reduction="mean")
-        self.optimizer = optim.SGD(agent.parameters(),lr=0.001)
+    def __init__(self,config=Config,**kwargs):
+        #TODO: create a config file / kwargs to take in all of the arguments, current impl is messy
+        if config:
+            self.config = config
+            self.load_config()
+        else:
+            raise Exception("Error loading in configuration for the trainer class!")
+        
+        self.agent = kwargs.get("agent")
+        self.loss_fn = nn.L1Loss(reduction="mean") #parameterize this later
+        self.optimizer = optim.SGD(self.agent.parameters(),lr=0.001)
+
+        #create the save folder if it does not exist
+        save_folder_path = str(Path(SAVE_FOLDER)) #convert to abspath
+        if not os.path.exists(save_folder_path):
+            os.mkdir(save_folder_path)
 
         #Gameplay queue
-        self.buffer_size = BUFFER_SIZE
-        self.buffer = Buffer()
+        self.buffer = Buffer(buffer_size=self.buffer_size)
 
-        #Encoding params
-        self.board_enc_length = 4
-        self.unique_encodings = int(np.log2(self.max_tile)) + 1
-        self.all_tiles = np.array([0] + [np.pow(2,x) for x in range(1,unique_encodings+1)])
-    
+    def load_config(self):
+        """Loads in the configuration for the trainer class"""
+        for attr,val in self.config.items():
+            setattr(self,attr,val)
+
     def one_hot(self,board:List[List[int]]):
         """Generates a one hot encoding of the board
         board: List[List[int]] Game board
@@ -44,21 +49,34 @@ class Trainer:
         """
         unique_encodings = self.unique_encodings #There are log2(max_tile) + 1 different tiles. Include 0 for the +1
         all_tiles = self.all_tiles
-        encoded = np.zeros((self.grid_size,self.grid_size,unique_encodings)) #make an NxNxE one hot encoding
-        for i in range(all_tiles.length):
+        encoded = np.zeros((unique_encodings,self.grid_size,self.grid_size)) #make an NxNxE one hot encoding
+        # print(f"[INFO] OH encoding params: ue {unique_encodings} all_tiles {all_tiles}")
+        for i in range(len(all_tiles)):
             tile = all_tiles[i]
             found_rows,found_cols = np.where(board == tile) #Returns two arrays with the indicies of the rows and columns where matches were found
+            # print(f"[INFO] tile {tile} found at {found_rows} and col {found_cols}")
             for j in range(len(found_cols)):
-                encoded[found_rows[j],found_cols[j],i] = 1
+                encoded[i,found_rows[j],found_cols[j]] = 1
         return encoded
 
-    def save(self) -> bool:
-        """Saves the model parameters
-        Returns:
-            boolean value indicating whether or not the save was successful
+    def save(self,filename:str):
+        """Save the pytorch model into a file
+        Args:
+            filename(str): (name of the pytorch model weights file)
         """
-
-        raise NotImplementedError
+        path = Path(self.save_folder) / filename
+        torch.save(self.agent.state_dict(),str(path))
+    
+    def load(self,filename:str):
+        """Load the pytorch model weights from ckpt
+        :param filename name of the ckpt file
+        """
+        path = Path(self.save_folder) / filename
+        if os.path.exists(path):
+            state_dict = torch.load(path)
+            self.agent.load_state_dict(state_dict)
+        else:
+            raise FileNotFoundError(f"{path} is not a valid pytorch checkpoint object!")
 
     def to_bin(self,s1: List[List[int]],s2:List[List[int]],a1:int,r1:int):
         """Converts an episode containing (s1,a1,r1,s2) into binary format"""
@@ -104,7 +122,7 @@ class Trainer:
         """
         self.agent.train()
         self.optimizer.zero_grad()
-        y = self.buffer.v_s1 + self.buffer.r_t
+        y = self.buffer.v_s1 + self.buffer.r
         q = self.buffer.v_s
         loss = self.loss_fn(q,y)
         loss.backward()
@@ -128,13 +146,7 @@ class Buffer(nn.Module):
         self.r.add(r_t)
         self.v_s1.add(v_t_1)
 
-    def save_model(self,filename:str):
-        """Save the pytorch model into a file
-        Args:
-            filename(str): (name of the pytorch model weights file)
-        """
-        path = Path(self.folder) / filename
-        torch.save(self.agent.state_dict(),str(path.resolve()))
+
     
 
             
