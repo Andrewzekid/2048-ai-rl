@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 import random
 from typing import List
 #File for the game code
@@ -19,14 +20,14 @@ class GameBoard:
 
     def initialize_game(self):
         NUMBER_OF_SQUARES = self.CELL_COUNT * self.CELL_COUNT
-        board = np.zeros((NUMBER_OF_SQUARES), dtype="int")
+        board = torch.zeros((NUMBER_OF_SQUARES,), dtype=torch.float32)
         initial_twos = np.random.default_rng().choice(NUMBER_OF_SQUARES, 2, replace=False)
         board[initial_twos] = 2
         board = board.reshape((self.CELL_COUNT, self.CELL_COUNT))
         return board
 
     def push_right(self,board):
-        new = np.zeros((self.CELL_COUNT,self.CELL_COUNT),dtype="int")
+        new = torch.zeros((self.CELL_COUNT,self.CELL_COUNT),dtype=torch.float32)
         changed = False
         for row in range(self.CELL_COUNT):
             cntr = self.CELL_COUNT - 1
@@ -59,29 +60,29 @@ class GameBoard:
         return board,move_made,score
 
     def move_left(self,board):
-        board = np.rot90(board,2)
+        board = torch.rot90(board,k=2)
         board,has_pushed = self.push_right(board)
         board,score,has_merged = self.merge_elements(board)
         board,_ = self.push_right(board)
-        board = np.rot90(board,-2)
+        board = torch.rot90(board,-2)
         move_made = has_pushed or has_merged
         return board,move_made,score
 
     def move_up(self,board):
-        board = np.rot90(board,-1)
+        board = torch.rot90(board,-1)
         board,has_pushed = self.push_right(board)
         board,score,has_merged = self.merge_elements(board)
         board,_ = self.push_right(board)
-        board = np.rot90(board,1)
+        board = torch.rot90(board,1)
         move_made = has_pushed or has_merged
         return board,move_made,score
 
     def move_down(self,board):
-        board = np.rot90(board,1)
+        board = torch.rot90(board,1)
         board,has_pushed = self.push_right(board)
         board,score,has_merged = self.merge_elements(board)
         board,_ = self.push_right(board)
-        board = np.rot90(board,-1)
+        board = torch.rot90(board,-1)
         move_made = has_pushed or has_merged
         return board,move_made,score
 
@@ -89,10 +90,11 @@ class GameBoard:
         """Adds a new tile according to a distribution"""
         #get empty tiles
         candidates = []
-        for row,col in enumerate(range(self.CELL_COUNT)):
-            #assume regular square
-            if board[row][col] == 0:
-                candidates.append((row,col))
+        for row in range(self.CELL_COUNT):
+            for col in range(self.CELL_COUNT):
+                #assume regular square
+                if board[row,col] == 0:
+                    candidates.append((row,col))
         chosen_num = self.DISTRIBUTION[random.randint(0,len(self.DISTRIBUTION) - 1)]
         row,col = candidates[random.randint(0,len(candidates) - 1)]
         board[row][col] = chosen_num
@@ -112,7 +114,7 @@ class GameBoard:
         moves = [(self.move_right,"00"),(self.move_left,"01"),(self.move_up,"10"),(self.move_down,"11")] #RIGHT = 00, LEFT = 01, UP = 10, DOWN = 11
         valid_moves = []
         for move_func,bin_code in moves:
-            copy = board.copy()
+            copy = board.detach()
             new_board,move_made,score = move_func(copy)
             if move_made: valid_moves.append(bin_code)
         return valid_moves

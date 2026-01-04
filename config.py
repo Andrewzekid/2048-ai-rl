@@ -1,5 +1,6 @@
 #KEY constants
 import numpy as np
+import torch
 MAXTILE = 32768
 BATCH_SIZE = 512
 MAXREWARD = 18 #Max reward is 2^18
@@ -18,7 +19,7 @@ available_setting = {
     "buffer_size":BUFFER_SIZE,
     "board_enc_length":4,
     "unique_encodings":UNIQUE_ENCODINGS,
-    "all_tiles": list([0] + [np.pow(2,x) for x in range(1,UNIQUE_ENCODINGS+1)])
+    "all_tiles": torch.tensor([0] + [2**x for x in range(1,UNIQUE_ENCODINGS+1)]),
 }
 class Config(dict):
     """Handles parameter configuration"""

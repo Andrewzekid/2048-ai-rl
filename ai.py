@@ -25,7 +25,7 @@ class Trainer:
             raise Exception("Error loading in configuration for the trainer class!")
         
         self.agent = kwargs.get("agent")
-        self.loss_fn = nn.L1Loss(reduction="mean") #parameterize this later
+        self.loss_fn = nn.MSELoss() #parameterize this later
         self.optimizer = optim.SGD(self.agent.parameters(),lr=0.001)
 
         #create the save folder if it does not exist
@@ -49,11 +49,11 @@ class Trainer:
         """
         unique_encodings = self.unique_encodings #There are log2(max_tile) + 1 different tiles. Include 0 for the +1
         all_tiles = self.all_tiles
-        encoded = np.zeros((unique_encodings,self.grid_size,self.grid_size)) #make an NxNxE one hot encoding
+        encoded = torch.zeros((unique_encodings,self.grid_size,self.grid_size)) #make an NxNxE one hot encoding
         # print(f"[INFO] OH encoding params: ue {unique_encodings} all_tiles {all_tiles}")
         for i in range(len(all_tiles)):
             tile = all_tiles[i]
-            found_rows,found_cols = np.where(board == tile) #Returns two arrays with the indicies of the rows and columns where matches were found
+            found_rows,found_cols = torch.where(board == tile) #Returns two arrays with the indicies of the rows and columns where matches were found
             # print(f"[INFO] tile {tile} found at {found_rows} and col {found_cols}")
             for j in range(len(found_cols)):
                 encoded[i,found_rows[j],found_cols[j]] = 1
@@ -125,6 +125,8 @@ class Trainer:
         y = self.buffer.v_s1 + self.buffer.r
         q = self.buffer.v_s
         loss = self.loss_fn(q,y)
+        # print(f"Target: {y} Prediction: {q}")
+        # print("Loss: ",type(loss),loss)
         loss.backward()
         self.optimizer.step()
         return loss
@@ -136,15 +138,20 @@ class Buffer(nn.Module):
         self.clear()
     
     def clear(self):
-        self.v_s = torch.tensor([],dtype=torch.float32,requires_grad=True) #Immediate reward and long term reward from the future state
-        self.r = torch.tensor([],dtype=torch.float32,requires_grad=True)
-        self.v_s1 = torch.tensor([],dtype=torch.float32,requires_grad=True)
+        self.v_s = [] #Immediate reward and long term reward from the future state
+        self.r = []
+        self.v_s1 = []
+    
+    def to_tensor(self):
+        self.v_s = torch.tensor(self.v_s,dtype=torch.float32,requires_grad=True)
+        self.r = torch.tensor(self.r,dtype=torch.float32,requires_grad=True)
+        self.v_s1 = torch.tensor(self.v_s1,dtype=torch.float32,requires_grad=True)
     
     def add_data(self,v_t:int,r_t:int,v_t_1:int):
         """Adds data to the buffer"""
-        self.v_s.add(v_t)
-        self.r.add(r_t)
-        self.v_s1.add(v_t_1)
+        self.v_s.append(v_t)
+        self.r.append(r_t)
+        self.v_s1.append(v_t_1)
 
 
     

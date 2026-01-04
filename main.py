@@ -1,6 +1,8 @@
 from gameenv import GameBoard
 from ai import RLAgent,Trainer
+import numpy as np
 import random
+import pdb
 import logging
 import torch
 #Key Parameters
@@ -33,6 +35,7 @@ if __name__ == "__main__":
     while iterations < MAX_ITERATIONS: #Check if gameover
         if iterations % 1024 == 0:
             #Train step
+            trainer.buffer.to_tensor()
             train_loss = 0
             train_steps += 1
             for epoch in range(EPOCHS):
@@ -43,38 +46,44 @@ if __name__ == "__main__":
             logging.info(msg)
             trainer.buffer.clear()
             #Add the model saving code
-            if train_steps % 500 == 0:
+            if train_steps % 10 == 0:
                 #Save the game every 500 steps
-                trainer.save() 
+                filename = f"{train_steps}.pth"
+                trainer.save(filename) 
         else:
             s_t = gb.board
             oh = trainer.one_hot(s_t)
-            print(f"[info] s_t: {s_t}")
-            print(f"[INFO] One Hot encoding of s_t: {oh}")
+            # print(f"[info] s_t: {s_t}")
+
             valid_moves = gb.get_valid_moves(gb.board)
             choices = []
             gains = []
             for a_t in valid_moves:
                 move_func = gb.MOVES[a_t]
                 s_t1,move_made,r_t = move_func(s_t)
-                v_t1 = agent(trainer.one_hot(s_t1))
+                one_hot = torch.unsqueeze(trainer.one_hot(s_t1),0).to(device)
+                v_t1 = agent(one_hot)
+                v_t1_int = v_t1.item()
 
                 choices.append((s_t,a_t,r_t,s_t1))
-                gains.append(v_t1 + r_t)
+                gains.append(v_t1_int + r_t)
 
 
-            s_t,a_t,r_t,s_t1 = choices[np.argmax(gains)]
+            s_t,a_t,r_t,s_t1 = choices[np.argmax(np.array(gains))]
             gb.board = gb.add_new_tile(s_t1)
+            gb.score += r_t
 
             #Update the buffer
-            v_t = agent(trainer.one_hot(s_t))
+            one_hot = torch.unsqueeze(trainer.one_hot(s_t),0).to(device)
+            v_t = agent(one_hot)
+            # print(f"Adding data {v_t} {r_t} {v_t1} to the buffer")
             trainer.buffer.add_data(v_t,r_t,v_t1)
 
         iterations+=1
 
         #Check game continuation
-        gb.game_over = gb.has_valid_move()
-        if gb.game_over:
+        if not gb.has_valid_move():
+            gb.game_over = True
             nGames += 1
             totalScore += gb.score
             maxScore = max(gb.score,maxScore)
