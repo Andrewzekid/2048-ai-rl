@@ -24,7 +24,8 @@ if __name__ == "__main__":
     gb = GameBoard()
     agent = RLAgent().to(device)
     trainer = Trainer(agent=agent)
-    iterations = 1
+    trainer.load("50.pth")
+    iterations = 10241
     train_steps = 0
     #Game params
     nGames = 0

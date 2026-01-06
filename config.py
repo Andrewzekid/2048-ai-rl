@@ -7,6 +7,8 @@ MAXREWARD = 18 #Max reward is 2^18
 GRID_SIZE = 4
 FOLDER = "./data"
 SAVE_FOLDER = "./ckpt"
+EPSILON = 0.95 #Exploration / Explotation tradeoff
+GAMMA = 0.99 #Future rewards discount rate
 BUFFER_SIZE = 1024
 UNIQUE_ENCODINGS = 16
 available_setting = {
@@ -20,6 +22,8 @@ available_setting = {
     "board_enc_length":4,
     "unique_encodings":UNIQUE_ENCODINGS,
     "all_tiles": torch.tensor([0] + [2**x for x in range(1,UNIQUE_ENCODINGS+1)]),
+    "epsilon":EPSILON,
+    "gamma":GAMMA
 }
 class Config(dict):
     """Handles parameter configuration"""

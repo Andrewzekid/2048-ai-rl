@@ -122,7 +122,7 @@ class Trainer:
         """
         self.agent.train()
         self.optimizer.zero_grad()
-        y = self.buffer.v_s1 + self.buffer.r
+        y = (self.gamma * self.buffer.v_s1) + self.buffer.r
         q = self.buffer.v_s
         loss = self.loss_fn(q,y)
         # print(f"Target: {y} Prediction: {q}")
@@ -135,12 +135,15 @@ class Buffer(nn.Module):
     """Class to keep track of the training data"""
     def __init__(self,buffer_size=BUFFER_SIZE):
         self.buffer_size = buffer_size
-        self.clear()
+        #Store the
+        self.v_s = deque() #Immediate reward and long term reward from the future state
+        self.r = deque()
+        self.v_s1 = deque()
     
     def clear(self):
-        self.v_s = [] #Immediate reward and long term reward from the future state
-        self.r = []
-        self.v_s1 = []
+        self.v_s.clear()
+        self.r.clear()
+        self.v_s1.clear()
     
     def to_tensor(self):
         self.v_s = torch.tensor(self.v_s,dtype=torch.float32,requires_grad=True)

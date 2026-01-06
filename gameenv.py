@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import random
 from typing import List
+from ai import RLAgent
 #File for the game code
 CELL_COUNT = 4 #4x4
 DISTRIBUTION = np.array([2,2,2,2,2,2,2,2,2,4])
@@ -123,6 +124,54 @@ class GameBoard:
         """Prints the board to the terminal"""
         for rown in range(self.CELL_COUNT):
             print(*self.board[rown],sep="| ")
+    
+    def ai_mode(self,weights_file:str,n:int):
+        """Runs the game in AI mode for evaluation of the AI.
+        :param weights_file: name of the file keeping the ai weights
+        :param n: number of turns to run the game for
+        """
+        agent = RLAgent()
+        trainer = Trainer(agent=agent)
+        trainer.load(weights_file)
+        while not self.game_over:
+            with torch.inference_mode():
+                print("Game board: ")
+                print(f"Score: {self.score}")
+                self.display_board()
+                valid_moves = self.get_valid_moves(self.board)
+                move_to_bin = {"W":"10","A":"01","S":"11","D":"00"}
+                choices = []
+                gains = []
+                for a_t in valid_moves:
+                    move_func = self.MOVES[a_t]
+                    s_t1,move_made,r_t = move_func(s_t)
+                    one_hot = torch.unsqueeze(trainer.one_hot(s_t1),0).to(device)
+                    v_t1 = trainer.agent(one_hot)
+                    v_t1_int = v_t1.item()
+
+                    choices.append((s_t,a_t,r_t,s_t1))
+                    gains.append(trainer.gamma*v_t1_int + r_t)
+                cont = input("Press any key to continue: ")
+
+                s_t,a_t,r_t,s_t1 = choices[np.argmax(np.array(gains))]
+                self.board = self.add_new_tile(s_t1)
+                self.score += r_t
+
+                #Update the buffer
+                one_hot = torch.unsqueeze(trainer.one_hot(s_t),0).to(device)
+
+                board,_,score = self.MOVES[move_bin](self.board)
+                #Update the score and board state
+                self.board = self.add_new_tile(board)
+                self.score += score
+
+            if not self.has_valid_move():
+                print(f"Game Over! Final Score: {self.score}")
+                self.game_over = True
+                self.reset()
+                break
+            
+
 
     def player_mode(self):
         """Initializes the game loop for testing"""
