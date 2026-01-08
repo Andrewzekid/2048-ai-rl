@@ -24,9 +24,9 @@ if __name__ == "__main__":
     gb = GameBoard()
     agent = RLAgent().to(device)
     trainer = Trainer(agent=agent)
-    trainer.load("50.pth")
+    trainer.load("60.pth")
     iterations = 10241
-    train_steps = 0
+    train_steps = 60
     #Game params
     nGames = 0
     totalScore = 0
@@ -52,38 +52,45 @@ if __name__ == "__main__":
                 filename = f"{train_steps}.pth"
                 trainer.save(filename) 
         else:
-            s_t = gb.board
-            oh = trainer.one_hot(s_t)
+            terminal = False
+            s = gb.board
+            s_t = trainer.one_hot(s)
             # print(f"[info] s_t: {s_t}")
 
             valid_moves = gb.get_valid_moves(gb.board)
-            choices = []
-            gains = []
-            for a_t in valid_moves:
-                move_func = gb.MOVES[a_t]
-                s_t1,move_made,r_t = move_func(s_t)
-                one_hot = torch.unsqueeze(trainer.one_hot(s_t1),0).to(device)
-                v_t1 = agent(one_hot)
-                v_t1_int = v_t1.item()
+            if random.random() < trainer.epsilon:
+                #Random action
+                a = random.choice(valid_moves)
+                move_func = gb.MOVES[a]
+                s_1,move_made,score = move_func(s)
+                gb.board = s_1
+                terminal = gb.has_valid_move()
+                trainer.buffer.add_experience(s_t,a,score,s_1,terminal)
+            else:
+                #Greedy action
+                with torch.inference_mode():
+                    trainer.agent.eval()
+                    gains = []
+                    ns = []
+                    ns_unencoded = []
 
-                choices.append((s_t,a_t,r_t,s_t1))
-                gains.append(v_t1_int + r_t)
+                    for a in valid_moves:
+                        move_func = gb.MOVES[a]
+                        s_1,move_made,score = move_func(s)
+                        gains.append(score)
+                        ns.append(trainer.one_hot(s_1))
+                        ns_unencoded.append(s_1)
 
-
-            s_t,a_t,r_t,s_t1 = choices[np.argmax(np.array(gains))]
-            gb.board = gb.add_new_tile(s_t1)
-            gb.score += r_t
-
-            #Update the buffer
-            one_hot = torch.unsqueeze(trainer.one_hot(s_t),0).to(device)
-            v_t = agent(one_hot)
-            # print(f"Adding data {v_t} {r_t} {v_t1} to the buffer")
-            trainer.buffer.add_data(v_t,r_t,v_t1)
+                    v = trainer.gamma * trainer.agent(torch.tensor(ns)).unsqueeze(-1) + gains
+                    max_idx = torch.argmax(v)
+                    gb.board = ns_unencoded[max_idx]
+                    terminal = gb.has_valid_move()
+                    trainer.buffer.add_experience(s_t,valid_moves[max_idx],gains[max_idx],ns[max_idx],terminal)
 
         iterations+=1
-
+        trainer.decay()
         #Check game continuation
-        if not gb.has_valid_move():
+        if terminal:
             gb.game_over = True
             nGames += 1
             totalScore += gb.score

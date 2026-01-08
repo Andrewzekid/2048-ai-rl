@@ -5,6 +5,7 @@ from collections import deque
 import torch.nn as nn
 import torch.optim as optim
 from pathlib import Path
+from decay import LinearDecay
 import shutil
 import os
 import torch.nn.functional as F
@@ -35,11 +36,17 @@ class Trainer:
 
         #Gameplay queue
         self.buffer = Buffer(buffer_size=self.buffer_size)
+        
+        #EP-Greedy Decay
+        self.decay_fn = LinearDecay(epsilon_start=self.epsilon,epsilon_end=self.epsilon_end,maxsteps=self.steps)
 
     def load_config(self):
         """Loads in the configuration for the trainer class"""
         for attr,val in self.config.items():
             setattr(self,attr,val)
+        
+    def decay(self):
+        self.epsilon = self.decay_fn.decay(self.epsilon)
 
     def one_hot(self,board:List[List[int]]):
         """Generates a one hot encoding of the board
@@ -134,32 +141,68 @@ class Trainer:
 class Buffer(nn.Module):
     """Class to keep track of the training data"""
     def __init__(self,buffer_size=BUFFER_SIZE):
-        self.buffer_size = buffer_size
-        #Store the
-        self.v_s = deque() #Immediate reward and long term reward from the future state
-        self.r = deque()
-        self.v_s1 = deque()
+        self.max_size = buffer_size
+        #TODO: add memory spec
+        self.batch_idxs = None
+        self.size = 0
+        self.seen_size = 0
+        self.head = -1
+        self.ns_idx_offset = 1
+        self.ns_buffer = deque(maxlen=self.ns_idx_offset)
+
+        self.data_keys = ["states","actions","rewards","next_states","done"]
+        self.reset()
     
-    def clear(self):
-        self.v_s.clear()
-        self.r.clear()
-        self.v_s1.clear()
+    def reset(self):
+        for k in self.data_keys:
+            # if k != "next_states":
+            setattr(self,k,[None] * self.max_size)
+        self.ns_buffer.clear()
+        self.size = 0
+        self.head = -1
     
-    def to_tensor(self):
-        self.v_s = torch.tensor(self.v_s,dtype=torch.float32,requires_grad=True)
-        self.r = torch.tensor(self.r,dtype=torch.float32,requires_grad=True)
-        self.v_s1 = torch.tensor(self.v_s1,dtype=torch.float32,requires_grad=True)
+    def sample_next_state(self,batch_size):
+        batch_offset = (self.head + self.ns_idx_offset) % self.max_size
+        
+
+    def sample_idxs(self,batch_size):
+        batch_idxs = np.random.randint(self.size,size=batch_size)
+        if self.use_cer:
+            batch_idxs[-1] = self.head
+        return batch_idxs
+
+    def batch_get(self,attr,batch_idxs):
+        """Gets a series of sampled data"""
+        return torch.gather(attr,-1,batch_idxs)
     
-    def add_data(self,v_t:int,r_t:int,v_t_1:int):
+    def add_experience(self,state,action,reward,next_state,done):
+        self.head = (self.head + 1) % self.max_size
+        self.states[self.head] = state.astype(np.float16)
+        self.actions[self.head] = action
+        self.rewards[self.head] = reward
+        self.dones[self.head] = done
+        self.ns_buffer.append(next_state.astype(np.float16))
+        if self.size < self.max_size:
+            self.size += 1
+        self.seen_size += 1
+        trainer = self.trainer
+        trainer.to_train = trainer.to_train or (self.head % trainer.training_frequency == 0)
+
+    def sample(self):
+        """Samples a portion of (SARSA) tuples from the buffer"""
+        self.batch_idxs = sample_idxs(self.batch_size)
+        batch = {}
+        for k in self.data_keys:
+            if k == "next_states":
+                batch[k] = self.sample_next_state()
+            else:
+                batch[k] = self.batch_get(getattr(self,k),self.batch_idxs)
+
+    
+    def update(self,state,action,reward,next_state,done):
         """Adds data to the buffer"""
-        self.v_s.append(v_t)
-        self.r.append(r_t)
-        self.v_s1.append(v_t_1)
-
-
-    
-
-            
+        self.add_experience(self,state,action,reward,next_state,done)
+     
 class RLAgent(nn.Module):
     def __init__(self):
         super().__init__()

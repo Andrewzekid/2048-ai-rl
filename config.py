@@ -23,6 +23,8 @@ available_setting = {
     "unique_encodings":UNIQUE_ENCODINGS,
     "all_tiles": torch.tensor([0] + [2**x for x in range(1,UNIQUE_ENCODINGS+1)]),
     "epsilon":EPSILON,
+    "epsilon_end":0.01,
+    "steps":10000,
     "gamma":GAMMA
 }
 class Config(dict):
