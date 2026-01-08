@@ -124,13 +124,15 @@ class GameBoard:
     def display_board(self):
         """Prints the board to the terminal"""
         for rown in range(self.CELL_COUNT):
-            print(*self.board[rown],sep="| ")
+            for coln in range(self.CELL_COUNT):
+                print(self.board[rown][coln].item(),sep=" | ")
     
-    def ai_mode(self,weights_file:str,n:int):
+    def ai_mode(self,weights_file:str):
         """Runs the game in AI mode for evaluation of the AI.
         :param weights_file: name of the file keeping the ai weights
         :param n: number of turns to run the game for
         """
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         agent = RLAgent()
         trainer = Trainer(agent=agent)
         trainer.load(weights_file)
@@ -140,7 +142,8 @@ class GameBoard:
                 print(f"Score: {self.score}")
                 self.display_board()
                 valid_moves = self.get_valid_moves(self.board)
-                move_to_bin = {"W":"10","A":"01","S":"11","D":"00"}
+                s_t = self.board
+                move_to_bin = {"10":"Up","01":"Left","11":"Down","00":"Right"}
                 choices = []
                 gains = []
                 for a_t in valid_moves:
@@ -150,18 +153,16 @@ class GameBoard:
                     v_t1 = trainer.agent(one_hot)
                     v_t1_int = v_t1.item()
 
-                    choices.append((s_t,a_t,r_t,s_t1))
+                    choices.append((a_t,r_t,s_t1))
                     gains.append(trainer.gamma*v_t1_int + r_t)
                 cont = input("Press any key to continue: ")
 
-                s_t,a_t,r_t,s_t1 = choices[np.argmax(np.array(gains))]
-                self.board = self.add_new_tile(s_t1)
-                self.score += r_t
+                a_t,r_t,s_t1 = choices[np.argmax(np.array(gains))]
 
                 #Update the buffer
                 one_hot = torch.unsqueeze(trainer.one_hot(s_t),0).to(device)
-
-                board,_,score = self.MOVES[move_bin](self.board)
+                print(f"Move Chosen: {move_to_bin[a_t]}")
+                board,_,score = self.MOVES[a_t](s_t)
                 #Update the score and board state
                 self.board = self.add_new_tile(board)
                 self.score += score

@@ -2,7 +2,6 @@ import math
 class LinearDecay:
     def __init__(self,epsilon_start,epsilon_end,maxsteps):
         """Decays epsilon linearly"""
-        self.epsilon = epsilon_start
         self.epsilon_end = epsilon_end
         self.maxsteps = maxsteps
         self.current_steps = 0

@@ -3,6 +3,7 @@ from ai import RLAgent,Trainer
 import numpy as np
 import random
 import pdb
+from torch import distributions
 import logging
 import torch
 #Key Parameters
@@ -53,39 +54,8 @@ if __name__ == "__main__":
                 trainer.save(filename) 
         else:
             terminal = False
-            s = gb.board
-            s_t = trainer.one_hot(s)
-            # print(f"[info] s_t: {s_t}")
-
-            valid_moves = gb.get_valid_moves(gb.board)
-            if random.random() < trainer.epsilon:
-                #Random action
-                a = random.choice(valid_moves)
-                move_func = gb.MOVES[a]
-                s_1,move_made,score = move_func(s)
-                gb.board = s_1
-                terminal = gb.has_valid_move()
-                trainer.buffer.add_experience(s_t,a,score,s_1,terminal)
-            else:
-                #Greedy action
-                with torch.inference_mode():
-                    trainer.agent.eval()
-                    gains = []
-                    ns = []
-                    ns_unencoded = []
-
-                    for a in valid_moves:
-                        move_func = gb.MOVES[a]
-                        s_1,move_made,score = move_func(s)
-                        gains.append(score)
-                        ns.append(trainer.one_hot(s_1))
-                        ns_unencoded.append(s_1)
-
-                    v = trainer.gamma * trainer.agent(torch.tensor(ns)).unsqueeze(-1) + gains
-                    max_idx = torch.argmax(v)
-                    gb.board = ns_unencoded[max_idx]
-                    terminal = gb.has_valid_move()
-                    trainer.buffer.add_experience(s_t,valid_moves[max_idx],gains[max_idx],ns[max_idx],terminal)
+            s,a,r,s_1,terminal = epsilon_greedy()
+            trainer.buffer.add_experience(s,a,r,s_1,terminal)
 
         iterations+=1
         trainer.decay()
@@ -101,3 +71,69 @@ if __name__ == "__main__":
 
     
 
+def epsilon_greedy(gb):
+    terminal = False
+    s = gb.board
+    s_oh = trainer.one_hot(s)
+    valid_moves = gb.get_valid_moves(gb.board)
+    if random.random() < trainer.epsilon:
+        #Random action
+        a = random.choice(valid_moves)
+        move_func = gb.MOVES[a]
+        s_1,_,r = move_func(s)
+    else:
+        #Greedy action
+        with torch.inference_mode():
+            trainer.agent.eval()
+            gains = []
+            ns = []
+            ns_unencoded = []
+            for a in valid_moves:
+                move_func = gb.MOVES[a]
+                s_1,move_made,score = move_func(s)
+                gains.append(score)
+                ns.append(trainer.one_hot(s_1))
+                ns_unencoded.append(s_1)
+            v = trainer.gamma * trainer.agent(torch.tensor(ns)).unsqueeze(-1) + gains
+            max_idx = torch.argmax(v)
+            s_1 = ns[max_idx]
+            s_1_oh = ns_unencoded[max_idx]
+            a = valid_moves[max_idx]
+            r = gains[max_idx]
+
+    gb.board = s_1_oh
+    terminal = gb.has_valid_move()
+
+    return (s_oh,a,r,s_1,terminal)
+
+def boltzmann(gb):
+    terminal = False
+    s = gb.board
+    s_oh = trainer.one_hot(s)
+    valid_moves = gb.get_valid_moves(gb.board)
+    with torch.inference_mode():
+        trainer.agent.eval()
+        gains = []
+        ns = []
+        ns_unencoded = []
+        for a in valid_moves:
+            move_func = gb.MOVES[a]
+            s_1,move_made,score = move_func(s)
+            gains.append(score)
+            ns.append(trainer.one_hot(s_1))
+            ns_unencoded.append(s_1)
+        v = trainer.gamma * trainer.agent(torch.tensor(ns)).unsqueeze(-1) + gains
+        v_exp = torch.exp(v) / trainer.epsilon
+        boltzmann_pd = v_exp / (torch.sum(v_exp))
+        pd = Categorical(boltzmann_pd)
+        idx = pd.sample().item()
+
+        s_1 = ns[idx]
+        s_1_oh = ns_unencoded[idx]
+        a = valid_moves[idx]
+        r = gains[idx]
+
+    gb.board = s_1_oh
+    terminal = gb.has_valid_move()
+
+    return (s_oh,a,r,s_1,terminal)

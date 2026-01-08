@@ -26,6 +26,7 @@ class Trainer:
             raise Exception("Error loading in configuration for the trainer class!")
         
         self.agent = kwargs.get("agent")
+        self.gb = GameBoard()
         self.loss_fn = nn.MSELoss() #parameterize this later
         self.optimizer = optim.SGD(self.agent.parameters(),lr=0.001)
 
@@ -37,14 +38,12 @@ class Trainer:
         #Gameplay queue
         self.buffer = Buffer(buffer_size=self.buffer_size)
         
-        #EP-Greedy Decay
-        self.decay_fn = LinearDecay(epsilon_start=self.epsilon,epsilon_end=self.epsilon_end,maxsteps=self.steps)
 
     def load_config(self):
         """Loads in the configuration for the trainer class"""
         for attr,val in self.config.items():
             setattr(self,attr,val)
-        
+    
     def decay(self):
         self.epsilon = self.decay_fn.decay(self.epsilon)
 
