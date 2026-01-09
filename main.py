@@ -1,5 +1,6 @@
-from gameenv import GameBoard
+
 from ai import RLAgent,Trainer
+from gamenv import GameBoard
 import numpy as np
 import random
 import pdb
@@ -22,9 +23,9 @@ if __name__ == "__main__":
     )
     
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    gb = GameBoard()
     agent = RLAgent().to(device)
     trainer = Trainer(agent=agent)
+    gb = GameBoard()
     trainer.load("60.pth")
     iterations = 10241
     train_steps = 60
@@ -54,7 +55,7 @@ if __name__ == "__main__":
                 trainer.save(filename) 
         else:
             terminal = False
-            s,a,r,s_1,terminal = epsilon_greedy()
+            s,a,r,s_1,terminal = epsilon_greedy(gb)
             trainer.buffer.add_experience(s,a,r,s_1,terminal)
 
         iterations+=1

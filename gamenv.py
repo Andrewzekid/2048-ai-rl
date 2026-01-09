@@ -3,7 +3,6 @@ import torch
 from ai import Trainer,RLAgent
 import random
 from typing import List
-from ai import RLAgent
 #File for the game code
 CELL_COUNT = 4 #4x4
 DISTRIBUTION = np.array([2,2,2,2,2,2,2,2,2,4])

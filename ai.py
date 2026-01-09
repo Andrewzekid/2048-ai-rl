@@ -11,6 +11,7 @@ import os
 import torch.nn.functional as F
 from typing import List
 from config import conf
+import util
 #initialize configuration
 Config = conf()
 BUFFER_SIZE = 512
@@ -26,7 +27,6 @@ class Trainer:
             raise Exception("Error loading in configuration for the trainer class!")
         
         self.agent = kwargs.get("agent")
-        self.gb = GameBoard()
         self.loss_fn = nn.MSELoss() #parameterize this later
         self.optimizer = optim.SGD(self.agent.parameters(),lr=0.001)
 
@@ -160,8 +160,20 @@ class Buffer(nn.Module):
         self.size = 0
         self.head = -1
     
-    def sample_next_state(self,batch_size):
-        batch_offset = (self.head + self.ns_idx_offset) % self.max_size
+    def sample_next_state(head,max_size,ns_idx_offset,batch_idxs,states,ns_buffer):
+        """Guard for out of bounds sampling of next state"""
+        ns_batch_idxs = (head + ns_idx_offset) % self.max_size
+        buffer_ns_locs = np.argwhere((head < ns_batch_idxs) & (ns_batch_idxs <= head + ns_idx_offset)).flatten()
+        to_replace = buffer_ns_locs.size != 0
+        if to_replace:
+            buffer_idx = ns_batch_idxs[buffer_ns_locs] - head - 1
+            ns_batch_idxs[buffer_ns_locs] = 0
+        ns_batch_idxs = ns_batch_idxs % max_size
+        batch = util.batch_get(states,ns_batch_idxs)
+        if to_replace:
+            batch_ns = util.batch_get(ns_buffer,buffer_idx)
+            batch[buffer_ns_locs] = batch_ns
+        return batch
         
 
     def sample_idxs(self,batch_size):
@@ -195,7 +207,7 @@ class Buffer(nn.Module):
             if k == "next_states":
                 batch[k] = self.sample_next_state()
             else:
-                batch[k] = self.batch_get(getattr(self,k),self.batch_idxs)
+                batch[k] = util.batch_get(getattr(self,k),self.batch_idxs)
 
     
     def update(self,state,action,reward,next_state,done):

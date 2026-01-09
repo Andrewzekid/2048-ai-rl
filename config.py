@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 MAXTILE = 32768
-BATCH_SIZE = 512
+BATCH_SIZE = 10000
 MAXREWARD = 18 #Max reward is 2^18
 GRID_SIZE = 4
 FOLDER = "./data"
