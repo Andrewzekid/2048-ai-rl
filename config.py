@@ -9,7 +9,7 @@ FOLDER = "./data"
 SAVE_FOLDER = "./ckpt"
 EPSILON = 0.95 #Exploration / Explotation tradeoff
 GAMMA = 0.995 #Future rewards discount rate
-BUFFER_SIZE = 1024
+BUFFER_SIZE = 20000
 UNIQUE_ENCODINGS = 16
 available_setting = {
     "max_tile":32768,

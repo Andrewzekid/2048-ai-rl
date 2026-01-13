@@ -1,73 +1,62 @@
 import random
 from typing import Tuple,List
+from torch.distributions import Categorical
+from abc import abstractmethod
 class Policy:
-    def __init__(self,decay,epsilon_start,epsilon_end,maxsteps,trainer):
+    def __init__(self,decay,epsilon_start,epsilon_end,maxsteps,trainer,num_actions=4):
             #EP-Greedy Decay
         self.epsilon = epsilon_start
         self.trainer = trainer
         self.decay_fn = ExponentialDecay(epsilon_start=epsilon_start,epsilon_end=epsilon_end,maxsteps=maxsteps)
+        self.num_actions = 4
     
     def decay(self):
         self.epsilon = self.decay_fn(self.epsilon)
     
-    def choice(self):
+    def calc_q_vals(self) -> torch.tensor:
+        """Calculates the Q values for all possible actions in the current game state"""
         gb = trainer.gb
         s = gb.board
-        valid_moves = gb.get_valid_moves(s) 
-        terminal = False
-        s_t = trainer.one_hot(s)
-        if random.random() < self.epsilon:
-            chosen_a = random.choice(valid_moves)
-        else:
-        
-        move_func = gb.MOVES[chosen_a]
-        s_1,move_made,score = eval_move(move_func,s)
-        gb.board = s_1
-        terminal = gb.has_valid_move()
-        trainer.buffer.add_experience(s_t,a,score,s_1,terminal)
+        valid_moves = gb.get_valid_moves()
+        with torch.inference_mode():
+            trainer.agent.eval()
+            q = util.batch_get(trainer.agent(s).numpy(),valid_moves)
+            q_values = np.zeros(self.num_actions)
+            q_values[valid_moves] = q #Returns 4 Q values
+        return q_values
+
+    @abstractmethod
+    def choice(self):
+        """Chooses an action a"""
+        raise NotImplementedError
     
-    def eval_move(self,move_func,s:List[List[int]]) -> Tuple[List[List[int]],bool,int]:
-        """Given a move_function, return the new state and extra score after move execution"""
-        return move_func(s)
 
 class EpsilonGreedyPolicy(Policy):
-    def choice(self,actions):
-        """Given a list of valid actions, choose one to take based on the epsilon greedy policy"""  
-        
-            # print(f"[info] s_t: {s_t}")
-
-            
-                    v = trainer.gamma * trainer.agent(torch.tensor(ns)).unsqueeze(-1) + gains
-                    max_idx = torch.argmax(v)
-                    gb.board = ns_unencoded[max_idx]
-                    terminal = gb.has_valid_move()   
+    def choice(self) -> int:
+        """Given a list of valid actions, choose one to take based on the epsilon greedy policy
+        Returns: action (0-num_actions)
+        """ 
+        q_values = self.calc_q_vals()
         if random.random() < self.epsilon:
             #Random action
-            a = random.choice(valid_moves)
-            move_func = gb.MOVES[a]
-            s_1,move_made,score = move_func(s)
-            gb.board = s_1
-            terminal = gb.has_valid_move()
-            trainer.buffer.add_experience(s_t,a,score,s_1,terminal)
+            a = random.randint(0,self.num_actions)
         else:
             #Greedy action
-            with torch.inference_mode():
-                trainer.agent.eval()
-                gains = []
-                ns = []
-                ns_unencoded = []
+            a = torch.argmax(q_values)
+        return a
+    
+class BoltzmannPolicy(Policy):
+    def choice(self) -> int:
+        """Choose an action according to the boltzmann policy.
+        Returns: action (0-num_actions)
+        """
+        q_values = self.calc_q_vals() / self.epsilon
+        logits = torch.softmax(q_values)
+        pd = Categorical(logits)
+        a = pd.sample().item()
+        return a
 
-                for a in valid_moves:
-                    move_func = gb.MOVES[a]
-                    s_1,move_made,score = move_func(s)
-                    gains.append(score)
-                    ns.append(trainer.one_hot(s_1))
-                    ns_unencoded.append(s_1)
 
-class BoltzmannPolicy(EpsilonGreedyPolicy):
-
-    def choice()
-    raise NotImplementedError
 
 def policy_factory(policy_name:str,decay,epsilon_start,epsilon_end,maxsteps,trainer):
     """Factory for a policy, boltzmann = BoltzmannPolicy epgreedy = EpsilonGreedyPolicy"""

@@ -10,7 +10,7 @@ class GameBoard:
     def __init__(self,cell_count=CELL_COUNT,distribution=DISTRIBUTION):
         self.CELL_COUNT = cell_count
         self.DISTRIBUTION = distribution
-        self.MOVES = {"00":self.move_right,"01":self.move_left,"10":self.move_up,"11":self.move_down}
+        self.MOVES = {0:self.move_right,1:self.move_left,2:self.move_up,3:self.move_down}
         self.reset()
     
     def reset(self):
@@ -112,7 +112,7 @@ class GameBoard:
         """Get valid move
         Returns: List[str]: List of strings, with each string being a binary code for the move made
         """
-        moves = [(self.move_right,"00"),(self.move_left,"01"),(self.move_up,"10"),(self.move_down,"11")] #RIGHT = 00, LEFT = 01, UP = 10, DOWN = 11
+        moves = [(self.move_right,0),(self.move_left,1),(self.move_up,2),(self.move_down,3)] #RIGHT = 00, LEFT = 01, UP = 10, DOWN = 11
         valid_moves = []
         for move_func,bin_code in moves:
             copy = board.detach()
@@ -124,7 +124,8 @@ class GameBoard:
         """Prints the board to the terminal"""
         for rown in range(self.CELL_COUNT):
             for coln in range(self.CELL_COUNT):
-                print(self.board[rown][coln].item(),sep=" | ")
+                print(f"{int(self.board[rown][coln].item())} | ",end="")
+            print()
     
     def ai_mode(self,weights_file:str):
         """Runs the game in AI mode for evaluation of the AI.
@@ -142,7 +143,7 @@ class GameBoard:
                 self.display_board()
                 valid_moves = self.get_valid_moves(self.board)
                 s_t = self.board
-                move_to_bin = {"10":"Up","01":"Left","11":"Down","00":"Right"}
+                move_to_bin = {2:"Up",1:"Left",3:"Down",0:"Right"}
                 choices = []
                 gains = []
                 for a_t in valid_moves:

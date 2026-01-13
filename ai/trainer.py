@@ -9,24 +9,28 @@ from decay import LinearDecay
 import shutil
 import os
 import torch.nn.functional as F
+from replay import Buffer
 from typing import List
 from config import conf
 import util
 #initialize configuration
 Config = conf()
-BUFFER_SIZE = 512
 SAVE_FOLDER = "./ckpt"
 class Trainer:
     """Trainer class responsible for training the 2048 ai"""
     def __init__(self,config=Config,**kwargs):
         #TODO: create a config file / kwargs to take in all of the arguments, current impl is messy
-        if config:
-            self.config = config
-            self.load_config()
-        else:
-            raise Exception("Error loading in configuration for the trainer class!")
+        self.config = config
+        self.load_config()
         
-        self.agent = kwargs.get("agent")
+        agent = kwargs.get("agent")
+        targNet = kwargs.get("targNet")
+        if agent and targNet:
+            self.agent = agent
+            self.targNet = targNet
+        else:
+            raise Exception("Need to provide an agent and Target Q network as keyword argument when initializing the trainer class!")
+
         self.loss_fn = nn.MSELoss() #parameterize this later
         self.optimizer = optim.SGD(self.agent.parameters(),lr=0.001)
 
@@ -36,7 +40,7 @@ class Trainer:
             os.mkdir(save_folder_path)
 
         #Gameplay queue
-        self.buffer = Buffer(buffer_size=self.buffer_size)
+        self.buffer = Buffer()
         
 
     def load_config(self):
@@ -137,97 +141,5 @@ class Trainer:
         self.optimizer.step()
         return loss
 
-class Buffer(nn.Module):
-    """Class to keep track of the training data"""
-    def __init__(self,buffer_size=BUFFER_SIZE):
-        self.max_size = buffer_size
-        #TODO: add memory spec
-        self.batch_idxs = None
-        self.size = 0
-        self.seen_size = 0
-        self.head = -1
-        self.ns_idx_offset = 1
-        self.ns_buffer = deque(maxlen=self.ns_idx_offset)
-
-        self.data_keys = ["states","actions","rewards","next_states","done"]
-        self.reset()
-    
-    def reset(self):
-        for k in self.data_keys:
-            # if k != "next_states":
-            setattr(self,k,[None] * self.max_size)
-        self.ns_buffer.clear()
-        self.size = 0
-        self.head = -1
-    
-    def sample_next_state(head,max_size,ns_idx_offset,batch_idxs,states,ns_buffer):
-        """Guard for out of bounds sampling of next state"""
-        ns_batch_idxs = (head + ns_idx_offset) % self.max_size
-        buffer_ns_locs = np.argwhere((head < ns_batch_idxs) & (ns_batch_idxs <= head + ns_idx_offset)).flatten()
-        to_replace = buffer_ns_locs.size != 0
-        if to_replace:
-            buffer_idx = ns_batch_idxs[buffer_ns_locs] - head - 1
-            ns_batch_idxs[buffer_ns_locs] = 0
-        ns_batch_idxs = ns_batch_idxs % max_size
-        batch = util.batch_get(states,ns_batch_idxs)
-        if to_replace:
-            batch_ns = util.batch_get(ns_buffer,buffer_idx)
-            batch[buffer_ns_locs] = batch_ns
-        return batch
-        
-
-    def sample_idxs(self,batch_size):
-        batch_idxs = np.random.randint(self.size,size=batch_size)
-        if self.use_cer:
-            batch_idxs[-1] = self.head
-        return batch_idxs
-
-    def batch_get(self,attr,batch_idxs):
-        """Gets a series of sampled data"""
-        return torch.gather(attr,-1,batch_idxs)
-    
-    def add_experience(self,state,action,reward,next_state,done):
-        self.head = (self.head + 1) % self.max_size
-        self.states[self.head] = state.astype(np.float16)
-        self.actions[self.head] = action
-        self.rewards[self.head] = reward
-        self.dones[self.head] = done
-        self.ns_buffer.append(next_state.astype(np.float16))
-        if self.size < self.max_size:
-            self.size += 1
-        self.seen_size += 1
-        trainer = self.trainer
-        trainer.to_train = trainer.to_train or (self.head % trainer.training_frequency == 0)
-
-    def sample(self):
-        """Samples a portion of (SARSA) tuples from the buffer"""
-        self.batch_idxs = sample_idxs(self.batch_size)
-        batch = {}
-        for k in self.data_keys:
-            if k == "next_states":
-                batch[k] = self.sample_next_state()
-            else:
-                batch[k] = util.batch_get(getattr(self,k),self.batch_idxs)
-
-    
-    def update(self,state,action,reward,next_state,done):
-        """Adds data to the buffer"""
-        self.add_experience(self,state,action,reward,next_state,done)
      
-class RLAgent(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.conv1 = nn.Conv2d(in_channels=16,kernel_size=(2,2),out_channels=256)
-        self.conv2 = nn.Conv2d(in_channels=256,kernel_size=(2,2),out_channels=512)
-        self.dense1 = nn.Linear(512 * 2 * 2,1024)
-        self.dense2 = nn.Linear(1024,256)
-        self.output = nn.Linear(256,1)
-    def forward(self,x):
-        c1 = F.relu(self.conv1(x))
-        c2 = F.relu(self.conv2(c1))
-        c2 = c2.view(-1,512 *2 * 2)
-        d1 = F.relu(self.dense1(c2))
-        d2 = F.relu(self.dense2(d1))
-        output = self.output(d2)
-        return output
 

@@ -55,7 +55,7 @@ if __name__ == "__main__":
                 trainer.save(filename) 
         else:
             terminal = False
-            s,a,r,s_1,terminal = epsilon_greedy(gb)
+            s,a,r,s_1,terminal = boltzmann(gb)
             trainer.buffer.add_experience(s,a,r,s_1,terminal)
 
         iterations+=1
