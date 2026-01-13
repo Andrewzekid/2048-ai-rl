@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from pathlib import Path
 from decay import LinearDecay
+from policy import policy_factory
 import shutil
 import os
 import torch.nn.functional as F
@@ -22,7 +23,9 @@ class Trainer:
         #TODO: create a config file / kwargs to take in all of the arguments, current impl is messy
         self.config = config
         self.load_config()
-        
+        self.policy = policy_factory(self.action_selection,epsilon_start=self.epsilon,
+        epsilon_end=self.epsilon_end, maxsteps=self.steps,trainer=self)
+
         agent = kwargs.get("agent")
         targNet = kwargs.get("targNet")
         if agent and targNet:
@@ -88,44 +91,6 @@ class Trainer:
         else:
             raise FileNotFoundError(f"{path} is not a valid pytorch checkpoint object!")
 
-    def to_bin(self,s1: List[List[int]],s2:List[List[int]],a1:int,r1:int):
-        """Converts an episode containing (s1,a1,r1,s2) into binary format"""
-        a1_bin = f"{np.bin(a1)[2:]:02d}"
-        r1_bin = f"{np.bin(r1)[2:]:018d}" #edit to factor in the max reward
-        s1_bin = board_to_bin(s1)
-        s2_bin = board_to_bin(s2)
-        return (s1_bin,a1_bin,r1_bin,s2_bin)
-    
-    def board_to_bin(self,board:List[List[int]]):
-        """Converts board representation to binary"""
-        binstr = ""
-        for rown in range(self.grid_size):
-            for coln in range(self.grid_size):
-                val = all_tiles.index(board[rown][coln])
-                binstr += f"{np.bin(val)[2:]:04d}"
-        return binstr
-    
-    def load_data(self,binfile:str):
-        """Loads in training data from a binary file"""
-        path = os.path.join(self.FOLDER,binfile)
-        with open(path,"r") as f:
-            s_t = self.load_board(f.read())
-            a_t = f.read()
-            r_t = int(f.read(),2)
-            s_t_plusone = self.load_board(f.read())
-            yield (s_t,a_t,r_t,s_t_plusone)
-    
-    def load_board(self,bin:str) -> List[List[int]]:
-        """Given a binary string corresponding to the board, load in the original values"""
-        board = np.zeros((self.CELL_COUNT,self.CELL_COUNT),dtype="int")
-        idx = list[range(0,len(s_t) - 3,4)]
-        cntr = 0
-        for i in range(self.CELL_COUNT):
-            for j in range(self.CELL_COUNT):
-                board[i][j] = int(bin[idx[cntr]:idx[cntr+1]],2)
-                cntr +=1
-        return board
-
     def train_step(self) -> float:
         """Performs one gradient descent step on the TD error
         Returns: loss (float), loss from the current training step
@@ -141,5 +106,11 @@ class Trainer:
         self.optimizer.step()
         return loss
 
-     
+    def calc_q_loss(self,batch):
+        """Calculates the Q learning loss for the current batch"""
+
+        raise NotImplementedError
+    
+    
+    
 

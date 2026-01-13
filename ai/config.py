@@ -10,6 +10,7 @@ SAVE_FOLDER = "./ckpt"
 EPSILON = 0.95 #Exploration / Explotation tradeoff
 GAMMA = 0.995 #Future rewards discount rate
 BUFFER_SIZE = 20000
+POLICY = "boltzmann"
 UNIQUE_ENCODINGS = 16
 available_setting = {
     "max_tile":32768,
@@ -25,7 +26,8 @@ available_setting = {
     "epsilon":EPSILON,
     "epsilon_end":0.01,
     "steps":10000,
-    "gamma":GAMMA
+    "gamma":GAMMA,
+    "policy":POLICY
 }
 class Config(dict):
     """Handles parameter configuration"""
