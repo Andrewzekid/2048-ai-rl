@@ -95,22 +95,38 @@ class Trainer:
         """Performs one gradient descent step on the TD error
         Returns: loss (float), loss from the current training step
         """
-        self.agent.train()
+        #ADD         self.agent.train()
         self.optimizer.zero_grad()
-        y = (self.gamma * self.buffer.v_s1) + self.buffer.r
-        q = self.buffer.v_s
-        loss = self.loss_fn(q,y)
-        # print(f"Target: {y} Prediction: {q}")
-        # print("Loss: ",type(loss),loss)
-        loss.backward()
+        #ADD BATCH SAMPLING CODE
+        batch = trainer.buffer.sample()
+        loss = self.calc_q_loss(batch)
         self.optimizer.step()
         return loss
 
     def calc_q_loss(self,batch):
         """Calculates the Q learning loss for the current batch"""
+        states = batch["states"]
+        next_states = batch["next_states"]
+        q_preds= self.agent(states) #Calculate ai prime
+        with torch.inference_mode():
+            next_targ_q = self.targNet(next_states) #action selection in the next state
+            next_q_preds = self.agent(next_states)
+        action_q_preds = q_preds.gather(-1,batch["actions"].long().unsqueeze(-1)).squeeze(-1)
+        sp_actions = next_q_preds.argmax(dim=-1,keepdim=True) #calculate max ai prime
+        targ_q_sp = next_targ_q.gather(-1,sp_actions).squeeze(-1)
+        future_rewards = trainer.gamma * (1-batch["dones"]) * targ_q_sp + batch["rewards"]
+        q_loss = self.loss_fn(action_q_preds,future_rewards)
+        q_loss.backward()
+        #Add prioritized experience replay code
+        return loss
 
-        raise NotImplementedError
-    
+    def update_params(self):
+        """Synchronizes the Target Q network and the Q networks parameters"""
+        targ_params = self.targNet.parameters()
+        net_params = self.agent.parameters()
+        for np,tp in zip(net_params,targ_params):
+            tp.data = np.data.copy() #Make a copy of the Q networks paramters
+            tp.requires_grad = True
     
     
 

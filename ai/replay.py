@@ -69,7 +69,7 @@ class Buffer(Memory):
         trainer.to_train = trainer.to_train or (self.head % trainer.training_frequency == 0)
 
     def sample(self):
-        """Samples a portion of (SARSA) tuples from the buffer"""
+        """Samples a portion of (SARS) tuples from the buffer"""
         self.batch_idxs = sample_idxs(self.batch_size)
         batch = {}
         for k in self.data_keys:
