@@ -1,33 +1,27 @@
+from replay import Buffer
 from memory import Memory
 import util
-import numpy as np
-class Buffer(Memory):
-    """Class to keep track of the training data"""
+
+class PrioritizedExperienceReplay(Buffer):
     def __init__(self,memory_spec,body):
-        super().__init__(memory_spec,body)
         util.set_attr(self,memory_spec,keys=[
             "use_cer",
             "batch_size",
             "max_size",
+            "alpha",
+            "epsilon"
         ])
+        super().__init__(memory_spec,body)
         #TODO: add memory spec
-        self.batch_idxs = None
-        self.size = 0
-        self.seen_size = 0
-        self.head = -1
-        self.ns_idx_offset = self.body.env.num_envs if body.env.is_venv else 1
-        self.ns_buffer = deque(maxlen=self.ns_idx_offset)
+        self.epsilon = np.full((1,),self.epsilon)
+        self.alpha = np.full((1,),self.alpha)
 
-        self.data_keys = ["states","actions","rewards","next_states","done"]
+        self.data_keys = ["states","actions","rewards","next_states","done","priorities"]
         self.reset()
     
     def reset(self):
-        for k in self.data_keys:
-            # if k != "next_states":
-            setattr(self,k,[None] * self.max_size)
-        self.ns_buffer.clear()
-        self.size = 0
-        self.head = -1
+        super().reset()
+        self.tree = SumTree(capacity=self.max_size)
     
 
     def sample_next_state(self,head,max_size,ns_idx_offset,batch_idxs,states,ns_buffer):
@@ -84,46 +78,3 @@ class Buffer(Memory):
     def update(self,state,action,reward,next_state,done):
         """Adds data to the buffer"""
         self.add_experience(self,state,action,reward,next_state,done)
-
-class SumTree:
-    write = 0
-    def __init__(self,capacity):
-        self.data = np.zeros(capacity)
-        self.tree = np.zeros(2*capacity - 1)
-        self.capacity = capacity
-        self.n_entries = 0
-    def _retrieve(self,idx,s):
-        """Retrieves leaf with priority >= s in the tree"""
-        left = 2*idx + 1
-        right = 2*idx + 2
-        if idx >= len(self.tree):
-            return idx
-        if s <= self.tree[left]:
-            return self._retrieve(left,s)
-        else:
-            return self._retrieve(right,s - self.tree[left])
-    def update(self,idx,p):
-        change = p - self.tree[idx]
-        self.tree[idx] = p
-        self._propagate(idx,change)
-    def _propagate(self,idx,change):
-        parent = (idx - 1) //2
-        self.tree[parent] +=change
-        if parent != 0:
-            self._propagate(idx,change)
-    def add(self,p,data):
-        idx = self.capacity - 1 + self.write
-        self.data[self.write] = data
-        self.update(self.write,p)
-        self.write += 1
-
-        if self.write >= self.capacity:
-            self.write = 0
-    def total(self):
-        return self.tree[0]
-    
-    def get(self,s):
-        idx = self._retrieve(0,s)
-        dataIdx = idx - self.capacity + 1
-        return (idx,self.tree[idx],self.dataIdx[dataIdx])
-    

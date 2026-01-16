@@ -12,6 +12,7 @@ import os
 import torch.nn.functional as F
 from replay import Buffer
 from typing import List
+from agent import RLAgent
 from config import conf
 import util
 #initialize configuration
@@ -32,7 +33,7 @@ class Trainer:
             self.agent = agent
             self.targNet = targNet
         else:
-            raise Exception("Need to provide an agent and Target Q network as keyword argument when initializing the trainer class!")
+            self.init_nets()
 
         self.loss_fn = nn.MSELoss() #parameterize this later
         self.optimizer = optim.SGD(self.agent.parameters(),lr=0.001)
@@ -43,7 +44,7 @@ class Trainer:
             os.mkdir(save_folder_path)
 
         #Gameplay queue
-        self.buffer = Buffer()
+        self.buffer = Buffer(memory_spec=self.memory_spec,body=self.body)
         
 
     def load_config(self):
@@ -114,19 +115,22 @@ class Trainer:
         action_q_preds = q_preds.gather(-1,batch["actions"].long().unsqueeze(-1)).squeeze(-1)
         sp_actions = next_q_preds.argmax(dim=-1,keepdim=True) #calculate max ai prime
         targ_q_sp = next_targ_q.gather(-1,sp_actions).squeeze(-1)
-        future_rewards = trainer.gamma * (1-batch["dones"]) * targ_q_sp + batch["rewards"]
-        q_loss = self.loss_fn(action_q_preds,future_rewards)
+        y = trainer.gamma * (1-batch["dones"]) * targ_q_sp + batch["rewards"]
+        q_loss = self.loss_fn(action_q_preds,y)
         q_loss.backward()
         #Add prioritized experience replay code
+        if "Prioritized" in util.get_class_name(self.buffer):
+            errors = (y - action_q_preds.detach()).abs().cpu().numpy()
+            self.buffer.update_priorities(errors)
         return loss
 
     def update_params(self):
         """Synchronizes the Target Q network and the Q networks parameters"""
-        targ_params = self.targNet.parameters()
-        net_params = self.agent.parameters()
-        for np,tp in zip(net_params,targ_params):
-            tp.data = np.data.copy() #Make a copy of the Q networks paramters
-            tp.requires_grad = True
+        params = self.targNet.state_dict()
+        self.agent.load_state_dict(params)
     
+    def init_nets(self):
+        self.targNet = RLAgent()
+        self.agent = RLAgent()
     
 

@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 MAXTILE = 32768
-BATCH_SIZE = 10000
+BATCH_SIZE = 512
 MAXREWARD = 18 #Max reward is 2^18
 GRID_SIZE = 4
 FOLDER = "./data"
@@ -14,12 +14,10 @@ POLICY = "boltzmann"
 UNIQUE_ENCODINGS = 16
 available_setting = {
     "max_tile":32768,
-    "batch_size":512,
     "max_reward":18,
     "grid_size":4,
     "folder":FOLDER,
     "save_folder":SAVE_FOLDER,
-    "buffer_size":BUFFER_SIZE,
     "board_enc_length":4,
     "unique_encodings":UNIQUE_ENCODINGS,
     "all_tiles": torch.tensor([0] + [2**x for x in range(1,UNIQUE_ENCODINGS+1)]),
@@ -27,7 +25,18 @@ available_setting = {
     "epsilon_end":0.01,
     "steps":10000,
     "gamma":GAMMA,
-    "policy":POLICY
+    "policy":POLICY,
+    "body":{
+        "num_envs":1,
+        "env":{
+        "is_venv":False,
+        }
+    },
+    "memory_spec":{
+        "use_cer":True,
+        "batch_size":BATCH_SIZE,
+        "max_size":BUFFER_SIZE
+    }
 }
 class Config(dict):
     """Handles parameter configuration"""
