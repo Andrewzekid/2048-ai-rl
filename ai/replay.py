@@ -1,6 +1,7 @@
-from memory import Memory
-import util
+from ai.memory import Memory
+import ai.util as util
 import numpy as np
+from collections import deque
 class Buffer(Memory):
     """Class to keep track of the training data"""
     def __init__(self,memory_spec,body):
@@ -15,7 +16,7 @@ class Buffer(Memory):
         self.size = 0
         self.seen_size = 0
         self.head = -1
-        self.ns_idx_offset = self.body.env.num_envs if body.env.is_venv else 1
+        self.ns_idx_offset = self.body.env.num_envs if body['env']['is_venv'] else 1
         self.ns_buffer = deque(maxlen=self.ns_idx_offset)
 
         self.data_keys = ["states","actions","rewards","next_states","done"]
@@ -61,13 +62,13 @@ class Buffer(Memory):
         self.states[self.head] = state.astype(np.float16)
         self.actions[self.head] = action
         self.rewards[self.head] = reward
-        self.dones[self.head] = done
+        self.done[self.head] = done
         self.ns_buffer.append(next_state.astype(np.float16))
         if self.size < self.max_size:
             self.size += 1
         self.seen_size += 1
-        trainer = self.trainer
-        trainer.to_train = trainer.to_train or (self.head % trainer.training_frequency == 0)
+        # trainer = self.trainer
+        # trainer.to_train = trainer.to_train or (self.head % trainer.training_frequency == 0)
 
     def sample(self):
         """Samples a portion of (SARS) tuples from the buffer"""

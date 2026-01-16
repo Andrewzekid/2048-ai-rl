@@ -3,6 +3,7 @@ class LinearDecay:
     def __init__(self,epsilon_start,epsilon_end,maxsteps):
         """Decays epsilon linearly"""
         self.epsilon_end = epsilon_end
+        self.epsilon = epsilon_start
         self.maxsteps = maxsteps
         self.current_steps = 0
         self.decrement = (epsilon_end - epsilon_start) / maxsteps
@@ -20,9 +21,7 @@ class ExponentialDecay(LinearDecay):
     def __init__(self,epsilon_start,epsilon_end,maxsteps):
         """Decays epsilon exponentially"""
         super().__init__(epsilon_start=epsilon_start,epsilon_end=epsilon_end,maxsteps=maxsteps)
-        self.base = math.log(epsilon) #Find ln(epsilon)
-        self.end_base = math.log(epsilon_end)
-        self.decrement = (end_base - base) / maxsteps
+        self.decrement = math.log(self.epsilon / self.epsilon_end) / maxsteps
     def decay(self,epsilon):
         b = math.log(epsilon)
         if self.current_steps > self.maxsteps:

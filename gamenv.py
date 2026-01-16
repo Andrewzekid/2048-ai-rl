@@ -1,6 +1,7 @@
 import numpy as np
 import torch
-from ai import Trainer,RLAgent
+from ai.trainer import Trainer
+from ai.agent import RLAgent
 import random
 from typing import List
 #File for the game code

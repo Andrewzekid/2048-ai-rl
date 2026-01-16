@@ -5,16 +5,17 @@ from collections import deque
 import torch.nn as nn
 import torch.optim as optim
 from pathlib import Path
-from decay import LinearDecay
-from policy import policy_factory
+from ai.decay import LinearDecay
+from ai.policy import policy_factory
+from ai.priority import PrioritizedExperienceReplay
 import shutil
 import os
 import torch.nn.functional as F
-from replay import Buffer
+from ai.replay import Buffer
 from typing import List
-from agent import RLAgent
-from config import conf
-import util
+from ai.agent import RLAgent
+from ai.config import conf
+import ai.util as util
 #initialize configuration
 Config = conf()
 SAVE_FOLDER = "./ckpt"
@@ -44,7 +45,7 @@ class Trainer:
             os.mkdir(save_folder_path)
 
         #Gameplay queue
-        self.buffer = Buffer(memory_spec=self.memory_spec,body=self.body)
+        self.buffer = PrioritizedExperienceReplay(memory_spec=self.memory_spec,body=self.body)
         
 
     def load_config(self):
@@ -53,7 +54,7 @@ class Trainer:
             setattr(self,attr,val)
     
     def decay(self):
-        self.epsilon = self.decay_fn.decay(self.epsilon)
+        self.epsilon = self.policy.decay_fn.decay(self.epsilon)
 
     def one_hot(self,board:List[List[int]]):
         """Generates a one hot encoding of the board
@@ -92,17 +93,18 @@ class Trainer:
         else:
             raise FileNotFoundError(f"{path} is not a valid pytorch checkpoint object!")
 
-    def train_step(self) -> float:
+    def train_step(self,batch) -> float:
         """Performs one gradient descent step on the TD error
         Returns: loss (float), loss from the current training step
         """
-        #ADD         self.agent.train()
         self.optimizer.zero_grad()
-        #ADD BATCH SAMPLING CODE
-        batch = trainer.buffer.sample()
         loss = self.calc_q_loss(batch)
         self.optimizer.step()
         return loss
+    
+    def train_mode(self):
+        trainer.agent.train()
+        trainer.targNet.train()
 
     def calc_q_loss(self,batch):
         """Calculates the Q learning loss for the current batch"""
@@ -130,7 +132,8 @@ class Trainer:
         self.agent.load_state_dict(params)
     
     def init_nets(self):
-        self.targNet = RLAgent()
-        self.agent = RLAgent()
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.targNet = RLAgent().to(device)
+        self.agent = RLAgent().to(device)
     
 

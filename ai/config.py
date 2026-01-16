@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 MAXTILE = 32768
-BATCH_SIZE = 512
+BATCH_SIZE = 32
 MAXREWARD = 18 #Max reward is 2^18
 GRID_SIZE = 4
 FOLDER = "./data"
@@ -25,7 +25,7 @@ available_setting = {
     "epsilon_end":0.01,
     "steps":10000,
     "gamma":GAMMA,
-    "policy":POLICY,
+    "action_selection":POLICY,
     "body":{
         "num_envs":1,
         "env":{
@@ -33,7 +33,10 @@ available_setting = {
         }
     },
     "memory_spec":{
+        "name": "PrioritizedReplay",
         "use_cer":True,
+        "alpha":0.6,
+        "epsilon":0.001,
         "batch_size":BATCH_SIZE,
         "max_size":BUFFER_SIZE
     }
