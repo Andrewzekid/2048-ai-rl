@@ -5,7 +5,7 @@ MAXTILE = 32768
 BATCH_SIZE = 32
 MAXREWARD = 18 #Max reward is 2^18
 GRID_SIZE = 4
-FOLDER = "./data"
+LOG_FOLDER = "./data/log.txt"
 SAVE_FOLDER = "./ckpt"
 EPSILON = 0.95 #Exploration / Explotation tradeoff
 GAMMA = 0.995 #Future rewards discount rate
@@ -16,7 +16,7 @@ available_setting = {
     "max_tile":32768,
     "max_reward":18,
     "grid_size":4,
-    "folder":FOLDER,
+    "log_path":LOG_FOLDER,
     "save_folder":SAVE_FOLDER,
     "board_enc_length":4,
     "unique_encodings":UNIQUE_ENCODINGS,

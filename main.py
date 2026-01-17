@@ -20,6 +20,7 @@ if __name__ == "__main__":
     trainer = Trainer()
     gb = GameBoard()
     policy = trainer.policy
+    collecting_data = True
     iterations = 0
     train_steps = 0
     #Game params
@@ -47,6 +48,7 @@ if __name__ == "__main__":
             train_loss /= NUM_BATCHES #Avg loss per epoch per batch
             train_steps += 1
             msg = f"EPOCH {train_steps} | Train Loss: {(train_loss):.2f} | Average Score: {(totalScore / nGames):.2f} | Number of Games: {nGames} | Max Score: {maxScore}"    
+            trainer.write(f"{train_loss},{int(totalScore/nGames)}") #Write as csv format
             print("[INFO] " + msg)
         else:
             s = gb.board
@@ -59,6 +61,10 @@ if __name__ == "__main__":
             s_oh = trainer.one_hot(s).numpy()
             s1_oh = trainer.one_hot(s1).numpy()
             trainer.buffer.add_experience(s_oh,a,r,s1_oh,terminal)
+            if collecting_data and (iterations % 1000 == 0):
+                print(f"[INFO] PER Collected {iterations}/{BUFFER_SIZE} Experiences!")
+                if iterations > BUFFER_SIZE:
+                    collecting_data = False
 
         iterations+=1
         trainer.decay()

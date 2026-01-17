@@ -30,12 +30,11 @@ class Trainer:
 
         agent = kwargs.get("agent")
         targNet = kwargs.get("targNet")
-        if agent and targNet:
-            self.agent = agent
-            self.targNet = targNet
-        else:
+        self.agent = agent
+        self.targNet = targNet
+        if not(self.agent or self.targNet): #Manual initialization if both are not provided
             self.init_nets()
-
+        
         self.loss_fn = nn.MSELoss() #parameterize this later
         self.optimizer = optim.SGD(self.agent.parameters(),lr=0.001)
 
@@ -43,6 +42,15 @@ class Trainer:
         save_folder_path = str(Path(SAVE_FOLDER)) #convert to abspath
         if not os.path.exists(save_folder_path):
             os.mkdir(save_folder_path)
+        
+        log_folder_path = Path(self.log_path)
+        if not(log_folder_path.exists()):
+            #create the log folder if it does not exist
+            fp = open(str(log_folder_path),"w")
+            fp.write("")
+            fp.close()
+
+                
 
         #Gameplay queue
         self.buffer = PrioritizedExperienceReplay(memory_spec=self.memory_spec,body=self.body)
@@ -135,5 +143,18 @@ class Trainer:
         device = "cuda" if torch.cuda.is_available() else "cpu"
         self.targNet = RLAgent().to(device)
         self.agent = RLAgent().to(device)
+    
+    def train(self):
+        self.targNet.train()
+        self.agent.train()
+    def eval(self):
+        self.targNet.eval()
+        self.agent.eval()
+    
+    def logging(self,content:str):
+        """Implements logging behavior for training"""
+        with open(self.log_folder_path,"a") as f:
+            f.write(content)
+
     
 

@@ -53,40 +53,36 @@ class GameBoard:
                     changed = True
                     board[row,col - 1] = 0
         return board,score,changed
+    
+
+    def move(self,board,k):
+        """Implements moving up/right/left/down
+        :param board game board
+        :param k (int) How many times to rotate 90 Left: 2, right: 0 UP: -1 Down: 1"""
+        if k:
+            board = torch.rot90(board,k)
+
+        board,has_pushed = self.push_right(board)
+        board,score,has_merged = self.merge_elements(board)
+        board,_ = self.push_right(board)
+
+        if k:
+            board = torch.rot90(board,k)
+
+        move_made = has_pushed or has_merged
+        return board,move_made,score
 
     def move_right(self,board):
-        board,has_pushed = self.push_right(board)
-        board,score,has_merged = self.merge_elements(board)
-        board,_ = self.push_right(board)
-        move_made = has_pushed or has_merged
-        return board,move_made,score
+        return self.move(board,k=0)
 
     def move_left(self,board):
-        board = torch.rot90(board,k=2)
-        board,has_pushed = self.push_right(board)
-        board,score,has_merged = self.merge_elements(board)
-        board,_ = self.push_right(board)
-        board = torch.rot90(board,-2)
-        move_made = has_pushed or has_merged
-        return board,move_made,score
+        return self.move(board,k=-2)
 
     def move_up(self,board):
-        board = torch.rot90(board,-1)
-        board,has_pushed = self.push_right(board)
-        board,score,has_merged = self.merge_elements(board)
-        board,_ = self.push_right(board)
-        board = torch.rot90(board,1)
-        move_made = has_pushed or has_merged
-        return board,move_made,score
+        return self.move(board,k=-1)
 
     def move_down(self,board):
-        board = torch.rot90(board,1)
-        board,has_pushed = self.push_right(board)
-        board,score,has_merged = self.merge_elements(board)
-        board,_ = self.push_right(board)
-        board = torch.rot90(board,-1)
-        move_made = has_pushed or has_merged
-        return board,move_made,score
+        return self.move(board,k=1)
 
     def add_new_tile(self,board):
         """Adds a new tile according to a distribution"""
@@ -134,11 +130,12 @@ class GameBoard:
         :param n: number of turns to run the game for
         """
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        agent = RLAgent()
+        agent = RLAgent().to(device)
         trainer = Trainer(agent=agent)
         trainer.load(weights_file)
         while not self.game_over:
             with torch.inference_mode():
+                trainer.eval()
                 print("Game board: ")
                 print(f"Score: {self.score}")
                 self.display_board()
