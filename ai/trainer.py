@@ -5,17 +5,21 @@ from collections import deque
 import torch.nn as nn
 import torch.optim as optim
 from pathlib import Path
+import shutil
+from typing import List
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
+import torch.nn.functional as F
+
+from ai.replay import Buffer
 from ai.decay import LinearDecay
 from ai.policy import policy_factory
 from ai.priority import PrioritizedExperienceReplay
-import shutil
-import os
-import torch.nn.functional as F
-from ai.replay import Buffer
-from typing import List
 from ai.agent import RLAgent
 from ai.config import conf
 import ai.util as util
+
 #initialize configuration
 Config = conf()
 SAVE_FOLDER = "./ckpt"
@@ -155,6 +159,27 @@ class Trainer:
         """Implements logging behavior for training"""
         with open(self.log_folder_path,"a") as f:
             f.write(content)
+
+    def visualize(self):
+        """Visualize Training Results including train_loss and average_score"""
+        log_folder_path = Path(self.log_folder_path)
+        fp = str(log_folder_path)
+        data = pd.read_csv(fp,header=None,names=["train_loss","average_score"])
+        steps = np.arange(0,len(data),1)
+        fig = plt.figure()
+        ax1 = fig.add_subplot(1,2,1)
+        ax1.plot(steps,data["train_loss"])
+        ax1.set_xlabel("Train Steps")
+        ax1.set_ylabel("Train Loss")
+        ax1.set_title("Train Loss over time")
+        
+        ax2 = fig.add_subplot(1,2,2)
+        ax2.plot(steps,data["average_score"])
+        ax2.set_xlabel("Train Steps")
+        ax2.set_ylabel("Average Reward")
+        ax2.set_title("Reward over time")
+        plt.subplots_adjust(hspace=1)
+        plt.show()
 
     
 
