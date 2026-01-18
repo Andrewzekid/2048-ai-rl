@@ -2,6 +2,7 @@ from ai.memory import Memory
 import ai.util as util
 import numpy as np
 from collections import deque
+import torch
 class Buffer(Memory):
     """Class to keep track of the training data"""
     def __init__(self,memory_spec,body):
@@ -72,7 +73,7 @@ class Buffer(Memory):
 
     def sample(self):
         """Samples a portion of (SARS) tuples from the buffer"""
-        self.batch_idxs = sample_idxs(self.batch_size)
+        self.batch_idxs = self.sample_idxs(self.batch_size)
         batch = {}
         for k in self.data_keys:
             if k == "next_states":

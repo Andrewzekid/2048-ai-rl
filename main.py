@@ -19,6 +19,8 @@ EPOCHS = 10 #How many updates per batch
 if __name__ == "__main__":
     print("[INFO] Initializing Training... setting global variables")
     trainer = Trainer()
+    trainer.init_nets()
+
     gb = GameBoard()
     policy = trainer.policy
     collecting_data = True
@@ -28,16 +30,33 @@ if __name__ == "__main__":
     nGames = 0
     totalScore = 0
     maxScore = 0
+
+
+    def collect_data(gb,trainer,policy):
+        """performs one data collection step and adds it to the PER"""
+        s = gb.board
+        a = policy.choice(gb) 
+        move_func = gb.MOVES[a]
+        s1,_,r = move_func(s)
+        gb.board = s1
+        terminal = gb.has_valid_move()
+
+        s_oh = trainer.one_hot(s).numpy()
+        s1_oh = trainer.one_hot(s1).numpy()
+        trainer.buffer.add_experience(s_oh,a,r,s1_oh,terminal)
+        global iterations
+        iterations += 1
+
+
     #Main loop
-    print("[INFO] Beginning gameplay")
-    print("[INFO] Initializing Data Collection...")
+    print("[INFO] Beginning gameplay \n Initializing Data Collection...")
     while iterations < MAX_ITERATIONS: #Check if gameover
         if (iterations % 4 == 0) and iterations > START_SIZE:
             trainer.train_mode()
             #Parallel training 
             trainer.agent.share_memory()
             for i in range(NUM_BATCHES):
-                batch = self.buffer.sample()
+                batch = trainer.buffer.sample()
                 trainer.parallelize(trainer.train,args=(batch,))
             #Add eval code for the message displaying
             if(iterations % 250 == 0):
@@ -46,9 +65,12 @@ if __name__ == "__main__":
                 trainer.eval()
                 for i in range(NUM_BATCHES):
                     with torch.inference_mode():
+                        batch = trainer.buffer.sample()
                         train_loss += trainer.test_step()
 
                 train_loss /= NUM_BATCHES #Avg loss per epoch per batch
+                train_steps += 1
+
                 msg = f"EPOCH {train_steps} | Train Loss: {(train_loss):.2f} | Average Score for past 1k games: {(totalScore / nGames):.2f} | Number of Games: {nGames} | Max Score: {maxScore}"    
                 trainer.logging(f"{train_loss},{int(totalScore/nGames)}") #Write as csv format
                 print("[INFO] " + msg)
@@ -65,12 +87,12 @@ if __name__ == "__main__":
                 print(f"[INFO] Saving model weights to {filename}")
         else:
             #Collect data on multiple cpus
-            trainer.parallelize(collect_data,args=(gb,trainer,policy))
+            collect_data(gb,trainer,policy)
             
         iterations+=1
         trainer.decay()
         #Check game continuation
-        if terminal:
+        if not(gb.has_valid_move()):
             gb.game_over = True
             nGames += 1
             totalScore += gb.score
@@ -83,21 +105,6 @@ if __name__ == "__main__":
             if iterations > BUFFER_SIZE:
                 collecting_data = False
 
-
-def collect_data(gb,trainer,policy):
-    """performs one data collection step and adds it to the PER"""
-    s = gb.board
-    a = policy.choice(gb) 
-    move_func = gb.MOVES[a]
-    s1,_,r = move_func(s)
-    gb.board = s1
-    terminal = gb.has_valid_move()
-
-    s_oh = trainer.one_hot(s).numpy()
-    s1_oh = trainer.one_hot(s1).numpy()
-    trainer.buffer.add_experience(s_oh,a,r,s1_oh,terminal)
-    global iterations
-    iterations += 1
 
 
 

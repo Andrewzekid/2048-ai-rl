@@ -2,6 +2,7 @@ from ai.replay import Buffer
 from ai.memory import Memory
 import ai.util as util
 import numpy as np
+import random
 class PrioritizedExperienceReplay(Buffer):
     def __init__(self,memory_spec,body):
         print(f"Creating PER with spec {memory_spec}")

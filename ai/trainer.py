@@ -25,6 +25,7 @@ import ai.util as util
 #initialize configuration
 Config = conf()
 SAVE_FOLDER = "./ckpt"
+LOG_FOLDER = "./data"
 class Trainer:
     """Trainer class responsible for training the 2048 ai"""
     def __init__(self,config=Config,**kwargs):
@@ -34,10 +35,9 @@ class Trainer:
         self.policy = policy_factory(self.action_selection,epsilon_start=self.epsilon,
         epsilon_end=self.epsilon_end, maxsteps=self.steps,trainer=self)
 
-        agent = kwargs.get("agent")
-        targNet = kwargs.get("targNet")
-        self.agent = agent
-        self.targNet = targNet
+        self.agent = kwargs.get("agent")
+        self.targNet = kwargs.get("targNet")
+       
         if not(self.agent or self.targNet): #Manual initialization if both are not provided
             self.init_nets()
         
@@ -45,18 +45,21 @@ class Trainer:
         self.optimizer = optim.SGD(self.agent.parameters(),lr=0.001)
 
         #create the save folder if it does not exist
-        save_folder_path = str(Path(SAVE_FOLDER)) #convert to abspath
+        save_folder_path = str(Path(SAVE_FOLDER).resolve()) #convert to abspath
         if not os.path.exists(save_folder_path):
             os.mkdir(save_folder_path)
         
+                #create the save folder if it does not exist
+        log_path = str(Path(LOG_FOLDER).resolve()) #convert to abspath
+        if not os.path.exists(log_path):
+            os.mkdir(log_path)
+
         log_folder_path = Path(self.log_path)
         if not(log_folder_path.exists()):
             #create the log folder if it does not exist
-            fp = open(str(log_folder_path),"w")
+            fp = open(str(log_folder_path.resolve()),"w")
             fp.write("")
             fp.close()
-
-                
 
         #Gameplay queue
         self.buffer = PrioritizedExperienceReplay(memory_spec=self.memory_spec,body=self.body)
@@ -84,7 +87,7 @@ class Trainer:
             tile = all_tiles[i]
             found_rows,found_cols = torch.where(board == tile) #Returns two arrays with the indicies of the rows and columns where matches were found
             # print(f"[INFO] tile {tile} found at {found_rows} and col {found_cols}")
-            for j in range(len(found_cols)):
+            for j in range(len(found_rows)):
                 encoded[i,found_rows[j],found_cols[j]] = 1
         return encoded
 
@@ -111,7 +114,6 @@ class Trainer:
         """Performs one gradient descent step on the TD error
         Returns: loss (float), loss from the current training step
         :param batch batch of training data sampled from the experience buffer
-        :param n number of updates per batch
         """
         self.optimizer.zero_grad()
         loss = self.calc_q_loss(batch)
@@ -119,7 +121,7 @@ class Trainer:
         return loss
     
     def parallelize(self,func,*args):
-        """Parallizes an operation"""
+        """Parallizes an operation using the hogwild algorithm"""
         workers = []
         for _rank in range(os.cpu_count()):
             w = mp.Process(target=func, args=tuple(*args))
@@ -136,7 +138,7 @@ class Trainer:
         return loss
     
     def train_mode(self):
-        trainer.agent.train()
+        self.agent.train()
 
     def calc_q_loss(self,batch):
         """Calculates the Q learning loss for the current batch"""
@@ -149,14 +151,14 @@ class Trainer:
         action_q_preds = q_preds.gather(-1,batch["actions"].long().unsqueeze(-1)).squeeze(-1)
         sp_actions = next_q_preds.argmax(dim=-1,keepdim=True) #calculate max ai prime
         targ_q_sp = next_targ_q.gather(-1,sp_actions).squeeze(-1)
-        y = trainer.gamma * (1-batch["dones"]) * targ_q_sp + batch["rewards"]
+        y = self.gamma * (1-batch["dones"]) * targ_q_sp + batch["rewards"]
         q_loss = self.loss_fn(action_q_preds,y)
         q_loss.backward()
         #Add prioritized experience replay code
         if "Prioritized" in util.get_class_name(self.buffer):
             errors = (y - action_q_preds.detach()).abs().cpu().numpy()
             self.buffer.update_priorities(errors)
-        return loss
+        return q_loss
 
     def update_params(self):
         """Synchronizes the Target Q network and the Q networks parameters"""
@@ -178,13 +180,13 @@ class Trainer:
     
     def logging(self,content:str):
         """Implements logging behavior for training"""
-        with open(self.log_folder_path,"a") as f:
+        with open(str(self.log_folder_path.resolve()),"a") as f:
             f.write(content)
 
     def visualize(self):
         """Visualize Training Results including train_loss and average_score"""
         log_folder_path = Path(self.log_folder_path)
-        fp = str(log_folder_path)
+        fp = str(log_folder_path.resolve())
         data = pd.read_csv(fp,header=None,names=["train_loss","average_score"])
         steps = np.arange(0,len(data),1)
         fig = plt.figure()
