@@ -9,7 +9,7 @@ LOG_FOLDER = "./data/log.txt"
 SAVE_FOLDER = "./ckpt"
 EPSILON = 0.95 #Exploration / Explotation tradeoff
 GAMMA = 0.995 #Future rewards discount rate
-BUFFER_SIZE = 20000
+BUFFER_SIZE = 200000
 POLICY = "boltzmann"
 UNIQUE_ENCODINGS = 16
 available_setting = {
@@ -22,8 +22,8 @@ available_setting = {
     "unique_encodings":UNIQUE_ENCODINGS,
     "all_tiles": torch.tensor([0] + [2**x for x in range(1,UNIQUE_ENCODINGS+1)]),
     "epsilon":EPSILON,
-    "epsilon_end":0.01,
-    "steps":10000,
+    "epsilon_end":0.005,
+    "steps":5000000,
     "gamma":GAMMA,
     "action_selection":POLICY,
     "body":{

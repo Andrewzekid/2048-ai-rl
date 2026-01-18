@@ -2,15 +2,17 @@
 import numpy as np
 import torch
 from collections import deque
-import torch.nn as nn
-import torch.optim as optim
 from pathlib import Path
 import shutil
 from typing import List
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+
+import torch.nn as nn
+import torch.optim as optim
 import torch.nn.functional as F
+import torch.multiprocessing as mp
 
 from ai.replay import Buffer
 from ai.decay import LinearDecay
@@ -39,7 +41,7 @@ class Trainer:
         if not(self.agent or self.targNet): #Manual initialization if both are not provided
             self.init_nets()
         
-        self.loss_fn = nn.MSELoss() #parameterize this later
+        self.loss_fn = nn.SmoothL1Loss() #parameterize this later
         self.optimizer = optim.SGD(self.agent.parameters(),lr=0.001)
 
         #create the save folder if it does not exist
@@ -108,15 +110,33 @@ class Trainer:
     def train_step(self,batch) -> float:
         """Performs one gradient descent step on the TD error
         Returns: loss (float), loss from the current training step
+        :param batch batch of training data sampled from the experience buffer
+        :param n number of updates per batch
         """
         self.optimizer.zero_grad()
         loss = self.calc_q_loss(batch)
         self.optimizer.step()
         return loss
     
+    def parallelize(self,func,*args):
+        """Parallizes an operation"""
+        workers = []
+        for _rank in range(os.cpu_count()):
+            w = mp.Process(target=func, args=tuple(*args))
+            w.start()
+            workers.append(w)
+            for w in workers:
+                w.join()
+
+    
+    def test_step(self,batch) -> float:
+        """Conducts one test step and returns the loss"""
+        #add self.eval()
+        loss = self.calc_q_loss(batch)
+        return loss
+    
     def train_mode(self):
         trainer.agent.train()
-        trainer.targNet.train()
 
     def calc_q_loss(self,batch):
         """Calculates the Q learning loss for the current batch"""
@@ -140,8 +160,8 @@ class Trainer:
 
     def update_params(self):
         """Synchronizes the Target Q network and the Q networks parameters"""
-        params = self.targNet.state_dict()
-        self.agent.load_state_dict(params)
+        params = self.agent.state_dict()
+        self.targNet.load_state_dict(params)
     
     def init_nets(self):
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -151,6 +171,7 @@ class Trainer:
     def train(self):
         self.targNet.train()
         self.agent.train()
+    
     def eval(self):
         self.targNet.eval()
         self.agent.eval()
