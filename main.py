@@ -12,7 +12,7 @@ import torch.multiprocessing as mp
 import torch
 #Key Parameters
 MAX_ITERATIONS = 4000000
-BUFFER_SIZE = 100000
+BUFFER_SIZE = 10000
 NUM_BATCHES = 4 #Number of batches to go through
 START_SIZE = BUFFER_SIZE//2
 POLICY = "boltzmann"
@@ -61,7 +61,7 @@ if __name__ == "__main__":
                 batch = trainer.buffer.sample()
                 trainer.parallelize(trainer.train_step,args=(net,batch,))
             #Add eval code for the message displaying
-            if(iterations % 250 == 0):
+            if(iterations % 50 == 0):
                 train_loss = 0
                 #Print eval message and log after every 1000 iterations
                 trainer.eval()

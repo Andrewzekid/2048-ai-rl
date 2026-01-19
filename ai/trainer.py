@@ -158,7 +158,7 @@ class Trainer:
         action_q_preds = q_preds.gather(-1,batch["actions"].long().unsqueeze(-1)).squeeze(-1)
         sp_actions = next_q_preds.argmax(dim=-1,keepdim=True) #calculate max ai prime
         targ_q_sp = next_targ_q.gather(-1,sp_actions).squeeze(-1)
-        y = self.gamma * (1-batch["dones"]) * targ_q_sp + batch["rewards"]
+        y = self.gamma * (1-batch["done"]) * targ_q_sp + batch["rewards"]
         q_loss = self.loss_fn(action_q_preds,y)
         q_loss.backward()
         #Add prioritized experience replay code
