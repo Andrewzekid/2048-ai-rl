@@ -42,7 +42,7 @@ class Trainer:
             self.init_nets()
         
         self.loss_fn = nn.SmoothL1Loss() #parameterize this later
-        self.optimizer = optim.SGD(self.agent.parameters(),lr=0.001)
+        self.optimizer = optim.SGD(self.agent.parameters(),lr=0.0001)
 
         #create the save folder if it does not exist
         save_folder_path = str(Path(SAVE_FOLDER).resolve()) #convert to abspath
@@ -61,6 +61,7 @@ class Trainer:
             fp.write("")
             fp.close()
 
+        self.num_workers = int(os.cpu_count() * 0.75) #Only use a portion of cpus to avoid black screen
         #Gameplay queue
         self.buffer = PrioritizedExperienceReplay(memory_spec=self.memory_spec,body=self.body)
         
@@ -110,21 +111,23 @@ class Trainer:
         else:
             raise FileNotFoundError(f"{path} is not a valid pytorch checkpoint object!")
 
-    def train_step(self,batch) -> float:
+    def train_step(self,qnet,batch) -> float:
         """Performs one gradient descent step on the TD error
         Returns: loss (float), loss from the current training step
         :param batch batch of training data sampled from the experience buffer
         """
         self.optimizer.zero_grad()
-        loss = self.calc_q_loss(batch)
+        loss = self.calc_q_loss(qnet,batch)
         self.optimizer.step()
         return loss
     
-    def parallelize(self,func,*args):
-        """Parallizes an operation using the hogwild algorithm"""
+    def parallelize(self,func,args: tuple):
+        """Parallizes an operation using the hogwild algorithm
+        :param args (tuple) tuple of arguments to pass into the function to parallize
+        """
         workers = []
-        for _rank in range(os.cpu_count()):
-            w = mp.Process(target=func, args=tuple(*args))
+        for _rank in range(self.num_workers):
+            w = mp.Process(target=func, args=args)
             w.start()
             workers.append(w)
             for w in workers:
@@ -134,20 +137,23 @@ class Trainer:
     def test_step(self,batch) -> float:
         """Conducts one test step and returns the loss"""
         #add self.eval()
-        loss = self.calc_q_loss(batch)
+        loss = self.calc_q_loss(qnet=self.agent,batch=batch)
         return loss
     
     def train_mode(self):
         self.agent.train()
 
-    def calc_q_loss(self,batch):
-        """Calculates the Q learning loss for the current batch"""
+    def calc_q_loss(self,qnet,batch):
+        """Calculates the Q learning loss for the current batch
+        :param qnet (RLAgent) q network to use for predictions
+        :param batch batch of data to train on
+        """
         states = batch["states"]
         next_states = batch["next_states"]
-        q_preds= self.agent(states) #Calculate ai prime
+        q_preds= qnet(states) #Calculate ai prime
         with torch.inference_mode():
             next_targ_q = self.targNet(next_states) #action selection in the next state
-            next_q_preds = self.agent(next_states)
+            next_q_preds = qnet(next_states)
         action_q_preds = q_preds.gather(-1,batch["actions"].long().unsqueeze(-1)).squeeze(-1)
         sp_actions = next_q_preds.argmax(dim=-1,keepdim=True) #calculate max ai prime
         targ_q_sp = next_targ_q.gather(-1,sp_actions).squeeze(-1)

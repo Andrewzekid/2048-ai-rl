@@ -8,6 +8,7 @@ from ai.policy import policy_factory
 import pdb
 from torch import distributions
 import logging
+import torch.multiprocessing as mp
 import torch
 #Key Parameters
 MAX_ITERATIONS = 4000000
@@ -18,6 +19,7 @@ POLICY = "boltzmann"
 EPOCHS = 10 #How many updates per batch
 if __name__ == "__main__":
     print("[INFO] Initializing Training... setting global variables")
+    mp.set_start_method("spawn")
     trainer = Trainer()
     trainer.init_nets()
 
@@ -54,10 +56,10 @@ if __name__ == "__main__":
         if (iterations % 4 == 0) and iterations > START_SIZE:
             trainer.train_mode()
             #Parallel training 
-            trainer.agent.share_memory()
+            net = trainer.agent.share_memory()
             for i in range(NUM_BATCHES):
                 batch = trainer.buffer.sample()
-                trainer.parallelize(trainer.train,args=(batch,))
+                trainer.parallelize(trainer.train_step,args=(net,batch,))
             #Add eval code for the message displaying
             if(iterations % 250 == 0):
                 train_loss = 0
@@ -102,7 +104,7 @@ if __name__ == "__main__":
         #Logging
         if collecting_data and (iterations % 1000 == 0):
             print(f"[INFO] PER Collected {iterations}/{BUFFER_SIZE} Experiences!")
-            if iterations > BUFFER_SIZE:
+            if iterations > START_SIZE:
                 collecting_data = False
 
 
