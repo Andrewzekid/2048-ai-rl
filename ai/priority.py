@@ -42,8 +42,8 @@ class PrioritizedExperienceReplay(Buffer):
 
     def sample_idxs(self, batch_size):
         '''Samples batch_size indices from memory in proportional to their priority.'''
-        batch_idxs = np.zeros(batch_size)
-        tree_idxs = np.zeros(batch_size, dtype=np.int)
+        batch_idxs = np.zeros(batch_size, dtype=np.int32)
+        tree_idxs = np.zeros(batch_size, dtype=np.int32)
 
         for i in range(batch_size):
             s = random.uniform(0, self.tree.total())

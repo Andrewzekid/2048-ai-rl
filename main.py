@@ -12,7 +12,7 @@ import torch.multiprocessing as mp
 import torch
 #Key Parameters
 MAX_ITERATIONS = 4000000
-BUFFER_SIZE = 200000
+BUFFER_SIZE = 100000
 NUM_BATCHES = 4 #Number of batches to go through
 START_SIZE = BUFFER_SIZE//2
 POLICY = "boltzmann"
@@ -68,7 +68,7 @@ if __name__ == "__main__":
                 for i in range(NUM_BATCHES):
                     with torch.inference_mode():
                         batch = trainer.buffer.sample()
-                        train_loss += trainer.test_step()
+                        train_loss += trainer.test_step(batch)
 
                 train_loss /= NUM_BATCHES #Avg loss per epoch per batch
                 train_steps += 1

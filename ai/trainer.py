@@ -126,7 +126,8 @@ class Trainer:
         :param args (tuple) tuple of arguments to pass into the function to parallize
         """
         workers = []
-        for _rank in range(self.num_workers):
+        num_workers = 4
+        for _rank in range(num_workers):
             w = mp.Process(target=func, args=args)
             w.start()
             workers.append(w)
