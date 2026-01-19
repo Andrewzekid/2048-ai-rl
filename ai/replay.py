@@ -34,7 +34,7 @@ class Buffer(Memory):
 
     def sample_next_state(self,head,max_size,ns_idx_offset,batch_idxs,states,ns_buffer):
         """Guard for out of bounds sampling of next state"""
-        ns_batch_idxs = (head + ns_idx_offset) % self.max_size
+        ns_batch_idxs = (batch_idxs + ns_idx_offset) % max_size
         buffer_ns_locs = np.argwhere((head < ns_batch_idxs) & (ns_batch_idxs <= head + ns_idx_offset)).flatten()
         to_replace = buffer_ns_locs.size != 0
         if to_replace:

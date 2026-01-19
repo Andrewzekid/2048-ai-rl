@@ -119,7 +119,7 @@ class Trainer:
         self.optimizer.zero_grad()
         loss = self.calc_q_loss(qnet,batch)
         self.optimizer.step()
-        return loss
+        return loss.item()
     
     def parallelize(self,func,args: tuple):
         """Parallizes an operation using the hogwild algorithm
@@ -139,7 +139,7 @@ class Trainer:
         """Conducts one test step and returns the loss"""
         #add self.eval()
         loss = self.calc_q_loss(qnet=self.agent,batch=batch)
-        return loss
+        return loss.item()
     
     def train_mode(self):
         self.agent.train()
