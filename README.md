@@ -1,7 +1,7 @@
-#Playing 2048 Using Deep Reinforcement Learning
-After reading a book on AlphaGo, I decided to make an implementation of MCTS + Deep Reinforcement Learning for 2048.
+##Playing 2048 Using Deep Reinforcement Learning
+<p>After reading a book on AlphaGo, I decided to make an implementation of MCTS + Deep Reinforcement Learning for 2048.
 This Project uses a DDQN with a PER to estimate Q(s,a) for a given game state and action.
-Q(s,a) is combined with Monte Carlo Tree Search (MCTS) to produce a better estimate of the most optimal move in the current situation.
+Q(s,a) is combined with Monte Carlo Tree Search (MCTS) to produce a better estimate of the most optimal move in the current situation.</p>
 
 ## Todo
 - Add Adaptive search depth for MCTS (Some states have fewer empty squares or more high value tiles, expand the search depth for these states
