@@ -98,12 +98,15 @@ class GameBoard:
         board[row][col] = chosen_num
         return board
 
+    def has_move(self,board):
+        """Copy of has_valid_move but takes in an extra board parameter"""
+        return len(self.get_valid_moves(board)) != 0
 
     def has_valid_move(self) -> bool:
         """Determines whether the player still has a valid move
         Returns: boolean value indicating if no valid moves (False) or has valid moves (True)
         """
-        return bool(len(self.get_valid_moves(self.board)))
+        return len(self.get_valid_moves(self.board)) != 0
 
     def get_valid_moves(self,board) -> List[str]:
         """Get valid move
@@ -170,7 +173,8 @@ class GameBoard:
                 self.game_over = True
                 self.reset()
                 break
-            
+
+
 
 
     def player_mode(self):
@@ -201,6 +205,8 @@ class GameBoard:
                 self.game_over = True
                 self.reset()
                 break
+        
+    
             
 
 

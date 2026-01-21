@@ -82,7 +82,7 @@ class Trainer:
         """
         unique_encodings = self.unique_encodings #There are log2(max_tile) + 1 different tiles. Include 0 for the +1
         all_tiles = self.all_tiles
-        encoded = torch.zeros((unique_encodings,self.grid_size,self.grid_size)) #make an NxNxE one hot encoding
+        encoded = torch.zeros((unique_encodings,self.grid_size,self.grid_size),dtype=torch.float32) #make an NxNxE one hot encoding
         # print(f"[INFO] OH encoding params: ue {unique_encodings} all_tiles {all_tiles}")
         for i in range(len(all_tiles)):
             tile = all_tiles[i]
