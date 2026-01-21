@@ -170,7 +170,8 @@ class GameBoard:
                 self.game_over = True
                 self.reset()
                 break
-            
+    def mcts_mode(self,weights_file):
+        raise NotImplementedError       
 
 
     def player_mode(self):
@@ -201,6 +202,8 @@ class GameBoard:
                 self.game_over = True
                 self.reset()
                 break
+        
+    
             
 
 

@@ -1,5 +1,5 @@
 from abc import ABC,abstractmethod
-
+import torch
 
 class Memory(ABC):
     '''Abstract Memory class to define the API methods'''
@@ -10,6 +10,7 @@ class Memory(ABC):
         '''
         self.memory_spec = memory_spec
         self.body = body
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         # declare what data keys to store
         self.data_keys = ['states', 'actions', 'rewards', 'next_states', 'dones', 'priorities']
 

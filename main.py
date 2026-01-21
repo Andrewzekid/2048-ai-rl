@@ -9,10 +9,11 @@ import pdb
 from torch import distributions
 import logging
 import torch.multiprocessing as mp
+from tqdm import tqdm
 import torch
 #Key Parameters
 MAX_ITERATIONS = 4000000
-BUFFER_SIZE = 10000
+BUFFER_SIZE = 200000
 NUM_BATCHES = 4 #Number of batches to go through
 START_SIZE = BUFFER_SIZE//2
 POLICY = "boltzmann"
@@ -25,6 +26,7 @@ if __name__ == "__main__":
 
     gb = GameBoard()
     policy = trainer.policy
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     collecting_data = True
     iterations = 0
     train_steps = 0
@@ -46,8 +48,6 @@ if __name__ == "__main__":
         s_oh = trainer.one_hot(s).numpy()
         s1_oh = trainer.one_hot(s1).numpy()
         trainer.buffer.add_experience(s_oh,a,r,s1_oh,terminal)
-        global iterations
-        iterations += 1
 
 
     #Main loop
@@ -57,15 +57,16 @@ if __name__ == "__main__":
             trainer.train_mode()
             #Parallel training 
             net = trainer.agent.share_memory()
-            for i in range(NUM_BATCHES):
+            for i in tqdm(range(NUM_BATCHES),desc="Training Progress"):
                 batch = trainer.buffer.sample()
                 trainer.parallelize(trainer.train_step,args=(net,batch,))
             #Add eval code for the message displaying
             if(iterations % 50 == 0):
+                print(f"[INFO] Beginning Evaluation")
                 train_loss = 0
                 #Print eval message and log after every 1000 iterations
                 trainer.eval()
-                for i in range(NUM_BATCHES):
+                for i in tqdm(range(NUM_BATCHES),desc="Testing Progress"):
                     with torch.inference_mode():
                         batch = trainer.buffer.sample()
                         train_loss += trainer.test_step(batch)
@@ -102,9 +103,10 @@ if __name__ == "__main__":
             gb.reset() #Restart the game board
         
         #Logging
-        if collecting_data and (iterations % 1000 == 0):
-            print(f"[INFO] PER Collected {iterations}/{BUFFER_SIZE} Experiences!")
-            if iterations > START_SIZE:
+        num_data = len(trainer.buffer)
+        if collecting_data and (num_data % 1000 == 0):
+            print(f"[INFO] PER Collected {num_data}/{BUFFER_SIZE} Experiences!")
+            if num_data > BUFFER_SIZE:
                 collecting_data = False
 
 

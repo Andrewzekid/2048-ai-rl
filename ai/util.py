@@ -7,6 +7,8 @@ def batch_get(arr,idxs):
     """Get a list of indexes from an array"""
     if isinstance(arr,(list,deque)):
         return np.array(operator.itemgetter(*idxs)(arr))
+    elif isinstance(arr,torch.Tensor):
+        return batch_get_tensor(arr,idxs)
     else:
         return arr[idxs]
     
@@ -25,8 +27,6 @@ def get_class_name(obj, lower=False):
         class_name = class_name.lower()
     return class_name
 
-def batch_get_tensor(tensor,idxs,dim=-1):
+def batch_get_tensor(tensor,idxs,dim=0):
     """Get a list of indexes from a tensor"""
-    if not(isinstance(tensor,torch.Tensor)):
-        tensor = torch.tensor(tensor)
     return torch.index_select(tensor,dim=dim,index=idxs)

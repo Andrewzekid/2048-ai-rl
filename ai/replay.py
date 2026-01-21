@@ -23,6 +23,10 @@ class Buffer(Memory):
         self.data_keys = ["states","actions","rewards","next_states","done"]
         self.reset()
     
+    def __len__(self) -> int:
+        """Returns the number of experiences stored"""
+        return len(list(filter(lambda x: x is not None, self.states)))
+    
     def reset(self):
         for k in self.data_keys:
             # if k != "next_states":
@@ -78,12 +82,11 @@ class Buffer(Memory):
         for k in self.data_keys:
             if k == "next_states":
                 batch[k] = torch.tensor(self.sample_next_state(self.head,self.max_size,self.ns_idx_offset,
-                self.batch_idxs,self.states,self.ns_buffer),dtype=torch.float32)
+                self.batch_idxs,self.states,self.ns_buffer),dtype=torch.float32,device=self.device)
             else:
-                batch[k] = torch.tensor(util.batch_get(getattr(self,k),self.batch_idxs),dtype=torch.float32)
+                batch[k] = torch.tensor(util.batch_get(getattr(self,k),self.batch_idxs),dtype=torch.float32,device=self.device)
         return batch
 
-    
     def update(self,state,action,reward,next_state,done):
         """Adds data to the buffer"""
         self.add_experience(self,state,action,reward,next_state,done)
