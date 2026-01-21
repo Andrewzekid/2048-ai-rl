@@ -11,7 +11,7 @@ import logging
 import torch.multiprocessing as mp
 import torch
 #Key Parameters
-MAX_ITERATIONS = 4000000
+MAX_ITERATIONS = 40000000
 BUFFER_SIZE = 10000
 NUM_BATCHES = 4 #Number of batches to go through
 START_SIZE = BUFFER_SIZE//2
@@ -54,6 +54,7 @@ if __name__ == "__main__":
     print("[INFO] Beginning gameplay \n Initializing Data Collection...")
     while iterations < MAX_ITERATIONS: #Check if gameover
         if (iterations % 4 == 0) and iterations > START_SIZE:
+            print(f"Beginning train_step! Train step: {train_steps}")
             trainer.train_mode()
             #Parallel training 
             net = trainer.agent.share_memory()
@@ -61,7 +62,7 @@ if __name__ == "__main__":
                 batch = trainer.buffer.sample()
                 trainer.parallelize(trainer.train_step,args=(net,batch,))
             #Add eval code for the message displaying
-            if(iterations % 50 == 0):
+            if(train_steps % 50 == 0):
                 train_loss = 0
                 #Print eval message and log after every 1000 iterations
                 trainer.eval()
@@ -82,7 +83,7 @@ if __name__ == "__main__":
                 totalScore = 0
                 maxScore = 0
 
-            if (iterations - START_SIZE + 10000) % 10000 == 0:
+            if (train_steps) % 100 == 0:
                 #Save the model weights every 10000 steps
                 filename = f"{train_steps}.pth"
                 trainer.save(filename) 
