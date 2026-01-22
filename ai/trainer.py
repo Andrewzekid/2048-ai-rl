@@ -54,7 +54,7 @@ class Trainer:
         if not os.path.exists(log_path):
             os.mkdir(log_path)
 
-        log_folder_path = Path(self.log_path)
+        self.log_folder_path = Path(self.log_path)
         if not(log_folder_path.exists()):
             #create the log folder if it does not exist
             fp = open(str(log_folder_path.resolve()),"w")
@@ -74,11 +74,11 @@ class Trainer:
     def decay(self):
         self.epsilon = self.policy.decay_fn.decay(self.epsilon)
 
-    def one_hot(self,board:List[List[int]]):
+    def one_hot(self,board:List[List[int]]) -> torch.Tensor:
         """Generates a one hot encoding of the board
         board: List[List[int]] Game board
         Returns:
-            List[List[int]] one hot encoding of the game board
+            torch.Tensor (16,4,4) one hot encoding of the game board
         """
         unique_encodings = self.unique_encodings #There are log2(max_tile) + 1 different tiles. Include 0 for the +1
         all_tiles = self.all_tiles

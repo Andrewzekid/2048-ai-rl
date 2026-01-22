@@ -23,7 +23,7 @@ available_setting = {
     "all_tiles": torch.tensor([0] + [2**x for x in range(1,UNIQUE_ENCODINGS+1)]),
     "epsilon":EPSILON,
     "epsilon_end":0.005,
-    "steps":5000000,
+    "steps":200000,
     "gamma":GAMMA,
     "action_selection":POLICY,
     "body":{

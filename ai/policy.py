@@ -13,6 +13,7 @@ class Policy:
         self.trainer = trainer
         self.decay_fn = ExponentialDecay(epsilon_start=epsilon_start,epsilon_end=epsilon_end,maxsteps=maxsteps)
         self.num_actions = 4
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
     
     def decay(self):
         self.epsilon = self.decay_fn(self.epsilon)
@@ -26,12 +27,10 @@ class Policy:
         valid_moves = gb.get_valid_moves(s)
         with torch.inference_mode():
             trainer.agent.eval()
-            q_values = trainer.agent(trainer.one_hot(s)).squeeze(0).numpy()
-            q = util.batch_get(q_values,valid_moves)
-
-            q_valid = np.zeros(self.num_actions)
-            q_valid[valid_moves] = q #Returns num_actions Q values
-        return q_valid
+            q = trainer.agent(trainer.one_hot(s)).squeeze(0)
+            q = util.batch_get(q,valid_moves)            
+            
+        return q,valid_moves
 
     @abstractmethod
     def choice(self):
@@ -45,13 +44,15 @@ class EpsilonGreedyPolicy(Policy):
         :param gb GameBoard object
         Returns: action (0-num_actions)
         """ 
-        q_values = self.calc_q_vals(gb)
+        s = gb.board
+        q_values,valid_moves = self.calc_q_vals(gb)
         if random.random() < self.epsilon:
             #Random action
-            a = random.randint(0,self.num_actions)
+            a = random.choice(valid_moves)
         else:
             #Greedy action
             a = torch.argmax(q_values)
+            a = valid_moves[a]
         return a
     
 class BoltzmannPolicy(Policy):
@@ -60,11 +61,11 @@ class BoltzmannPolicy(Policy):
         :param gb Gameboard object
         Returns: action (0-num_actions)
         """
-        q_values = torch.tensor(self.calc_q_vals(gb) / self.epsilon)
-        logits = torch.softmax(q_values,dim=-1)
+        q_values,valid = self.calc_q_vals(gb)
+        logits = torch.softmax(q_values / self.epsilon,dim=-1)
         pd = Categorical(logits)
         a = pd.sample().item()
-        return a
+        return valid[a]
 
 
 

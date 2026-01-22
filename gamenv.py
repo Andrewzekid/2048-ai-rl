@@ -4,6 +4,7 @@ from ai.trainer import Trainer
 from ai.agent import RLAgent
 import random
 from typing import List
+import pdb
 #File for the game code
 CELL_COUNT = 4 #4x4
 DISTRIBUTION = np.array([2,2,2,2,2,2,2,2,2,4])
@@ -67,7 +68,7 @@ class GameBoard:
         board,_ = self.push_right(board)
 
         if k:
-            board = torch.rot90(board,k)
+            board = torch.rot90(board,-k)
 
         move_made = has_pushed or has_merged
         return board,move_made,score
@@ -84,18 +85,34 @@ class GameBoard:
     def move_down(self,board):
         return self.move(board,k=1)
 
-    def add_new_tile(self,board):
-        """Adds a new tile according to a distribution"""
-        #get empty tiles
-        candidates = []
-        for row in range(self.CELL_COUNT):
-            for col in range(self.CELL_COUNT):
-                #assume regular square
-                if board[row,col] == 0:
-                    candidates.append((row,col))
-        chosen_num = self.DISTRIBUTION[random.randint(0,len(self.DISTRIBUTION) - 1)]
-        row,col = candidates[random.randint(0,len(candidates) - 1)]
-        board[row][col] = chosen_num
+    def add_new_tile(self, board):
+        """Adds a new tile (2 or 4) to a random empty cell on the board.
+        
+        Args:
+            board: A 2D tensor representing the game board
+            
+        Returns:
+            The updated board with a new tile added
+            
+        Raises:
+            ValueError: If the board has no empty cells
+        """
+        # Find all empty positions (where value is 0)
+        empty_positions = torch.argwhere(board == 0)
+        
+        if len(empty_positions) == 0:
+            raise ValueError("Cannot add new tile: board is already full")
+        
+        # Randomly select an empty position
+        position_idx = random.randrange(len(empty_positions))
+        row, col = empty_positions[position_idx]
+        
+        # Choose tile value according to the distribution (typically 90% 2, 10% 4)
+        tile_value = random.choice(self.DISTRIBUTION)
+        
+        # Place the tile
+        board[row, col] = tile_value
+        
         return board
 
     def has_move(self,board):
@@ -115,7 +132,7 @@ class GameBoard:
         moves = [(self.move_right,0),(self.move_left,1),(self.move_up,2),(self.move_down,3)] #RIGHT = 00, LEFT = 01, UP = 10, DOWN = 11
         valid_moves = []
         for move_func,bin_code in moves:
-            copy = board.detach()
+            copy = board.clone()
             new_board,move_made,score = move_func(copy)
             if move_made: valid_moves.append(bin_code)
         return valid_moves

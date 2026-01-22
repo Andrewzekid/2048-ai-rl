@@ -8,6 +8,7 @@ def batch_get(arr,idxs):
     if isinstance(arr,(list,deque)):
         return np.array(operator.itemgetter(*idxs)(arr))
     elif isinstance(arr,torch.Tensor):
+        idxs = torch.tensor(idxs,dtype=torch.int64)
         return batch_get_tensor(arr,idxs)
     else:
         return arr[idxs]
