@@ -118,6 +118,7 @@ class Trainer:
         """
         self.optimizer.zero_grad()
         loss = self.calc_q_loss(qnet,batch)
+        loss.backward()
         self.optimizer.step()
         return loss.item()
     
@@ -160,7 +161,6 @@ class Trainer:
         targ_q_sp = next_targ_q.gather(-1,sp_actions).squeeze(-1)
         y = self.gamma * (1-batch["done"]) * targ_q_sp + batch["rewards"]
         q_loss = self.loss_fn(action_q_preds,y)
-        q_loss.backward()
         #Add prioritized experience replay code
         if "Prioritized" in util.get_class_name(self.buffer):
             errors = (y - action_q_preds.detach()).abs().cpu().numpy()

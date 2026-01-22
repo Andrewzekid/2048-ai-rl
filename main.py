@@ -61,33 +61,36 @@ if __name__ == "__main__":
             for i in tqdm(range(NUM_BATCHES),desc="Training Progress"):
                 batch = trainer.buffer.sample()
                 trainer.parallelize(trainer.train_step,args=(net,batch,))
-            #Add eval code for the message displaying
-            if(iterations % 50 == 0):
+            train_steps += 1
+
+            #Add eval code for the message displaying every 50 steps
+            if(train_steps % 25 == 0):
                 train_loss = 0
                 #Print eval message and log after every 1000 iterations
                 trainer.eval()
-                for i in tqdm(range(NUM_BATCHES),desc="Testing Progress"):
+                for i in tqdm(range(NUM_BATCHES),desc="Performing Evaluation Step: "):
                     with torch.inference_mode():
                         batch = trainer.buffer.sample()
                         train_loss += trainer.test_step(batch)
 
                 train_loss /= NUM_BATCHES #Avg loss per epoch per batch
-                train_steps += 1
 
                 msg = f"EPOCH {train_steps} | Train Loss: {(train_loss):.2f} | Average Score for past 1k games: {(totalScore / nGames):.2f} | Number of Games: {nGames} | Max Score: {maxScore}"    
                 trainer.logging(f"{train_loss},{int(totalScore/nGames)}") #Write as csv format
                 print("[INFO] " + msg)
-                trainer.update_params() #sync targ Q net and Q net params
+                
                 #Reset params
                 nGames = 0
                 totalScore = 0
                 maxScore = 0
 
-            if (train_steps) % 100 == 0:
+            if(train_steps % 100 == 0):
                 #Save the model weights every 10000 steps
                 filename = f"{train_steps}.pth"
                 trainer.save(filename) 
                 print(f"[INFO] Saving model weights to {filename}")
+                trainer.update_params() #sync targ Q net and Q net params
+                print(f"[INFO] Synchronizing Q and target Q networks")
         else:
             #Collect data on multiple cpus
             collect_data(gb,trainer,policy)
