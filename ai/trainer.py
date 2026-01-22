@@ -49,15 +49,10 @@ class Trainer:
         if not os.path.exists(save_folder_path):
             os.mkdir(save_folder_path)
         
-                #create the save folder if it does not exist
-        log_path = str(Path(LOG_FOLDER).resolve()) #convert to abspath
-        if not os.path.exists(log_path):
-            os.mkdir(log_path)
-
-        self.log_folder_path = Path(self.log_path)
-        if not(log_folder_path.exists()):
+        self.log_path = Path(self.log_path)
+        if not(self.log_path.exists()):
             #create the log folder if it does not exist
-            fp = open(str(log_folder_path.resolve()),"w")
+            fp = open(str(self.log_path.resolve()),"w")
             fp.write("")
             fp.close()
 
@@ -187,12 +182,12 @@ class Trainer:
     
     def logging(self,content:str):
         """Implements logging behavior for training"""
-        with open(str(self.log_folder_path.resolve()),"a") as f:
+        with open(str(self.log_path.resolve()),"a") as f:
             f.write(content)
 
     def visualize(self):
         """Visualize Training Results including train_loss and average_score"""
-        log_folder_path = Path(self.log_folder_path)
+        log_folder_path = self.log_path
         fp = str(log_folder_path.resolve())
         data = pd.read_csv(fp,header=None,names=["train_loss","average_score"])
         steps = np.arange(0,len(data),1)

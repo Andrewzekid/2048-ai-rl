@@ -15,7 +15,7 @@ import pdb
 import torch
 #Key Parameters
 MAX_ITERATIONS = 4000000
-BUFFER_SIZE = 200000
+BUFFER_SIZE = 2000
 NUM_BATCHES = 4 #Number of batches to go through
 START_SIZE = BUFFER_SIZE//2
 POLICY = "boltzmann"
@@ -67,7 +67,7 @@ if __name__ == "__main__":
             train_steps += 1
 
             #Add eval code for the message displaying every 50 steps
-            if(train_steps % 5== 0):
+            if(train_steps % 2== 0):
                 train_loss = 0
                 #Print eval message and log after every 1000 iterations
                 trainer.eval()
@@ -110,7 +110,7 @@ if __name__ == "__main__":
                 trainer.logging(f"{train_loss},{avgScore}") #Write as csv format
                 print("[INFO] " + msg)
                 
-            if(train_steps %25 == 0):
+            if(train_steps %2 == 0):
                 #Save the model weights every 10000 steps
                 filename = f"{train_steps}.pth"
                 trainer.save(filename) 
