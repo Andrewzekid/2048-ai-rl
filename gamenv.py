@@ -5,6 +5,7 @@ from ai.agent import RLAgent
 import random
 from typing import List
 import pdb
+import ai.util as util
 #File for the game code
 CELL_COUNT = 4 #4x4
 DISTRIBUTION = np.array([2,2,2,2,2,2,2,2,2,4])
@@ -151,9 +152,10 @@ class GameBoard:
         """
         device = "cuda" if torch.cuda.is_available() else "cpu"
         agent = RLAgent().to(device)
-        trainer = Trainer(agent=agent)
+        targNet = RLAgent().to(device)
+        trainer = Trainer(agent=agent,targNet=targNet)
         trainer.load(weights_file)
-        while not self.game_over:
+        while self.has_valid_move():
             with torch.inference_mode():
                 trainer.eval()
                 print("Game board: ")
@@ -162,28 +164,23 @@ class GameBoard:
                 valid_moves = self.get_valid_moves(self.board)
                 s_t = self.board
                 move_to_bin = {2:"Up",1:"Left",3:"Down",0:"Right"}
-                choices = []
-                gains = []
-                for a_t in valid_moves:
-                    move_func = self.MOVES[a_t]
-                    s_t1,move_made,r_t = move_func(s_t)
-                    one_hot = torch.unsqueeze(trainer.one_hot(s_t1),0).to(device)
-                    v_t1 = trainer.agent(one_hot)
-                    v_t1_int = v_t1.item()
 
-                    choices.append((a_t,r_t,s_t1))
-                    gains.append(trainer.gamma*v_t1_int + r_t)
-                cont = input("Press any key to continue: ")
 
-                a_t,r_t,s_t1 = choices[np.argmax(np.array(gains))]
-
-                #Update the buffer
                 one_hot = torch.unsqueeze(trainer.one_hot(s_t),0).to(device)
-                print(f"Move Chosen: {move_to_bin[a_t]}")
-                board,_,score = self.MOVES[a_t](s_t)
+                q_vals = trainer.agent(one_hot).squeeze()
+                print(f"Available moves: {valid_moves} Q values: {q_vals}")
+                q_valid = util.batch_get(q_vals,valid_moves)
+                a = valid_moves[torch.argmax(q_valid)]
+                move_func = self.MOVES[a]
+                s_t1,_,r_t = move_func(s_t)
+                
+                #Update the buffer
+
+                print(f"Move Chosen: {move_to_bin[a]}")
                 #Update the score and board state
-                self.board = self.add_new_tile(board)
-                self.score += score
+                cont = input("Press any key to continue: ")
+                self.board = self.add_new_tile(s_t1)
+                self.score += r_t
 
             if not self.has_valid_move():
                 print(f"Game Over! Final Score: {self.score}")
