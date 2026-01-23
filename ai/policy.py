@@ -1,17 +1,20 @@
 import random
 from typing import Tuple,List
 import ai.util as util
-from ai.decay import ExponentialDecay
+from ai.decay import ExponentialDecay,LinearDecay
 import numpy as np
 from torch.distributions import Categorical
 from abc import abstractmethod
 import torch
 class Policy:
-    def __init__(self,epsilon_start,epsilon_end,maxsteps,trainer,num_actions=4):
+    def __init__(self,epsilon_start,epsilon_end,maxsteps,trainer,num_actions=4,decay="linear"):
             #EP-Greedy Decay
         self.epsilon = epsilon_start
         self.trainer = trainer
-        self.decay_fn = ExponentialDecay(epsilon_start=epsilon_start,epsilon_end=epsilon_end,maxsteps=maxsteps)
+        if decay == "linear":
+            self.decay_fn = LinearDecay(epsilon_start=epsilon_start,epsilon_end=epsilon_end,maxsteps=maxsteps)
+        else:
+            self.decay_fn = ExponentialDecay(epsilon_start=epsilon_start,epsilon_end=epsilon_end,maxsteps=maxsteps)
         self.num_actions = 4
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
     

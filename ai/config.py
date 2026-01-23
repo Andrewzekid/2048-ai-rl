@@ -7,7 +7,7 @@ MAXREWARD = 18 #Max reward is 2^18
 GRID_SIZE = 4
 LOG_FOLDER = "data/log.txt"
 SAVE_FOLDER = "./ckpt"
-EPSILON = 0.95 #Exploration / Explotation tradeoff
+EPSILON = 5 #Exploration / Explotation tradeoff for boltzmann policy
 GAMMA = 0.995 #Future rewards discount rate
 BUFFER_SIZE = 200000
 POLICY = "boltzmann"
@@ -22,8 +22,8 @@ available_setting = {
     "unique_encodings":UNIQUE_ENCODINGS,
     "all_tiles": torch.tensor([0] + [2**x for x in range(1,UNIQUE_ENCODINGS+1)]),
     "epsilon":EPSILON,
-    "epsilon_end":0.005,
-    "steps":500000,
+    "epsilon_end":0.1,
+    "steps":400000,
     "gamma":GAMMA,
     "action_selection":POLICY,
     "body":{
