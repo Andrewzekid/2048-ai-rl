@@ -75,17 +75,10 @@ class Trainer:
         Returns:
             torch.Tensor (16,4,4) one hot encoding of the game board
         """
-        unique_encodings = self.unique_encodings #There are log2(max_tile) + 1 different tiles. Include 0 for the +1
-        all_tiles = self.all_tiles
-        encoded = torch.zeros((unique_encodings,self.grid_size,self.grid_size),dtype=torch.float32) #make an NxNxE one hot encoding
-        # print(f"[INFO] OH encoding params: ue {unique_encodings} all_tiles {all_tiles}")
-        for i in range(len(all_tiles)):
-            tile = all_tiles[i]
-            found_rows,found_cols = torch.where(board == tile) #Returns two arrays with the indicies of the rows and columns where matches were found
-            # print(f"[INFO] tile {tile} found at {found_rows} and col {found_cols}")
-            for j in range(len(found_rows)):
-                encoded[i,found_rows[j],found_cols[j]] = 1
-        return encoded
+        unique_encodings = self.unique_encodings.view(-1,1,1) #There are log2(max_tile) + 1 different tiles. Include 0 for the +1
+        board = torch.tensor(board,dtype=torch.long).unsqueeze(0)
+        enc = (unique_encodings == board).float()
+        return enc
 
     def save(self,filename:str):
         """Save the pytorch model into a file

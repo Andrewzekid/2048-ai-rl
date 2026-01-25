@@ -20,7 +20,7 @@ available_setting = {
     "save_folder":SAVE_FOLDER,
     "board_enc_length":4,
     "unique_encodings":UNIQUE_ENCODINGS,
-    "all_tiles": torch.tensor([0] + [2**x for x in range(1,UNIQUE_ENCODINGS+1)]),
+    "all_tiles": torch.tensor([0] + [1 << x for x in range(1,UNIQUE_ENCODINGS)],dtype=torch.float32),
     "epsilon":EPSILON,
     "epsilon_end":0.1,
     "steps":400000,
