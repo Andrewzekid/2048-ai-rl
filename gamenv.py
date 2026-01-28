@@ -6,6 +6,7 @@ import random
 from typing import List
 import pdb
 import ai.util as util
+import torch
 #File for the game code
 CELL_COUNT = 4 #4x4
 DISTRIBUTION = np.array([2,2,2,2,2,2,2,2,2,4])
@@ -14,6 +15,7 @@ class GameBoard:
         self.CELL_COUNT = cell_count
         self.DISTRIBUTION = distribution
         self.MOVES = {0:self.move_right,1:self.move_left,2:self.move_up,3:self.move_down}
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.reset()
     
     def reset(self):
@@ -24,14 +26,14 @@ class GameBoard:
 
     def initialize_game(self):
         NUMBER_OF_SQUARES = self.CELL_COUNT * self.CELL_COUNT
-        board = torch.zeros((NUMBER_OF_SQUARES,), dtype=torch.float32)
+        board = torch.zeros((NUMBER_OF_SQUARES,), dtype=torch.float32,device=self.device)
         initial_twos = np.random.default_rng().choice(NUMBER_OF_SQUARES, 2, replace=False)
         board[initial_twos] = 2
         board = board.reshape((self.CELL_COUNT, self.CELL_COUNT))
         return board
 
     def push_right(self,board):
-        new = torch.zeros((self.CELL_COUNT,self.CELL_COUNT),dtype=torch.float32)
+        new = torch.zeros((self.CELL_COUNT,self.CELL_COUNT),dtype=torch.float32,device=self.device)
         changed = False
         for row in range(self.CELL_COUNT):
             cntr = self.CELL_COUNT - 1
@@ -43,7 +45,7 @@ class GameBoard:
                     cntr -=1
         return new,changed
 
-    def merge_elements(self,board: np.array):
+    def merge_elements(self,board: torch.Tensor):
         changed = False
         score = 0
         for row in range(self.CELL_COUNT):
@@ -126,9 +128,9 @@ class GameBoard:
         """
         return len(self.get_valid_moves(self.board)) != 0
 
-    def get_valid_moves(self,board) -> List[str]:
+    def get_valid_moves(self,board) -> List[int]:
         """Get valid move
-        Returns: List[str]: List of strings, with each string being a binary code for the move made
+        Returns: List[int]: List of integers, each corresponding to a move made
         """
         moves = [(self.move_right,0),(self.move_left,1),(self.move_up,2),(self.move_down,3)] #RIGHT = 00, LEFT = 01, UP = 10, DOWN = 11
         valid_moves = []

@@ -1,6 +1,5 @@
 #Define constants
 import numpy as np
-import torch
 from collections import deque
 from pathlib import Path
 import shutil
@@ -12,6 +11,7 @@ import os
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+import torch
 import torch.multiprocessing as mp
 
 from ai.replay import Buffer
@@ -31,9 +31,11 @@ class Trainer:
     def __init__(self,config=Config,**kwargs):
         #TODO: create a config file / kwargs to take in all of the arguments, current impl is messy
         self.config = config
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.load_config()
         self.policy = policy_factory(self.action_selection,epsilon_start=self.epsilon,
         epsilon_end=self.epsilon_end, maxsteps=self.steps,trainer=self)
+        self.all_tiles.to(self.device) #0 - 32768
 
         self.agent = kwargs.get("agent")
         self.targNet = kwargs.get("targNet")
@@ -69,14 +71,14 @@ class Trainer:
     def decay(self):
         self.epsilon = self.policy.decay_fn.decay(self.epsilon)
 
-    def one_hot(self,board:List[List[int]]) -> torch.Tensor:
+    def one_hot(self,board:torch.Tensor) -> torch.Tensor:
         """Generates a one hot encoding of the board
-        board: List[List[int]] Game board
+        board: torch.Tensor (4,4) Game board
         Returns:
             torch.Tensor (16,4,4) one hot encoding of the game board
         """
-        unique_encodings = self.unique_encodings.view(-1,1,1) #There are log2(max_tile) + 1 different tiles. Include 0 for the +1
-        board = torch.tensor(board,dtype=torch.long).unsqueeze(0)
+        unique_encodings = self.all_tiles.view(-1,1,1) #There are log2(max_tile) + 1 different tiles. Include 0 for the +1
+        board = board.unsqueeze(0)
         enc = (unique_encodings == board).float()
         return enc
 
@@ -151,7 +153,7 @@ class Trainer:
         q_loss = self.loss_fn(action_q_preds,y)
         #Add prioritized experience replay code
         if "Prioritized" in util.get_class_name(self.buffer):
-            errors = (y - action_q_preds.detach()).abs().cpu().numpy()
+            errors = (y - action_q_preds.detach()).abs().cpu()
             self.buffer.update_priorities(errors)
         return q_loss
 

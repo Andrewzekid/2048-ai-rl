@@ -31,7 +31,7 @@ class Policy:
         with torch.inference_mode():
             trainer.agent.eval()
             q = trainer.agent(trainer.one_hot(s)).squeeze(0)
-            q = util.batch_get(q,valid_moves)            
+            q = q[valid_moves]         
             
         return q,valid_moves
 

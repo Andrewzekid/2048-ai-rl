@@ -15,7 +15,7 @@ import pdb
 import torch
 #Key Parameters
 MAX_ITERATIONS = 4000000
-BUFFER_SIZE = 200000
+BUFFER_SIZE = 2000
 NUM_BATCHES = 4 #Number of batches to go through
 START_SIZE = BUFFER_SIZE//2
 POLICY = "boltzmann"
@@ -47,9 +47,9 @@ if __name__ == "__main__":
         gb.board = s1
         gb.score += r
         done = 0 if gb.has_valid_move() else 1
-        s_oh = trainer.one_hot(s).numpy()
-        s1_oh = trainer.one_hot(s1).numpy()
-        pdb.set_trace()
+        s_oh = trainer.one_hot(s)
+        s1_oh = trainer.one_hot(s1)
+        # pdb.set_trace()
         trainer.buffer.add_experience(s_oh,a,r,s1_oh,done)
 
 

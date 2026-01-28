@@ -37,23 +37,33 @@ class Buffer(Memory):
     
 
     def sample_next_state(self,head,max_size,ns_idx_offset,batch_idxs,states,ns_buffer):
-        """Guard for out of bounds sampling of next state"""
+        """Guard for out of bounds sampling of next state
+        Args:
+        :param batch_idxs np.ndarray(batch_size,)
+        :param head (int)
+        :param max_size (int)
+        :param ns_idx_offset (int)
+        :param states (List[np.ndarray])
+        :param ns_buffer deque()
+        """
         ns_batch_idxs = (batch_idxs + ns_idx_offset) % max_size
-        buffer_ns_locs = np.argwhere((head < ns_batch_idxs) & (ns_batch_idxs <= head + ns_idx_offset)).flatten()
-        to_replace = buffer_ns_locs.size != 0
+        mask = (head < ns_batch_idxs) & (ns_batch_idxs <= head + ns_idx_offset)
+        buffer_ns_locs = torch.where(mask)[0]
+        to_replace = buffer_ns_locs.numel() != 0
         if to_replace:
             buffer_idx = ns_batch_idxs[buffer_ns_locs] - head - 1
             ns_batch_idxs[buffer_ns_locs] = 0
         ns_batch_idxs = ns_batch_idxs % max_size
+        print(f"ns_batch_idxs: {ns_batch_idxs}")
         batch = util.batch_get(states,ns_batch_idxs)
         if to_replace:
-            batch_ns = util.batch_get(ns_buffer,buffer_idx)
+            batch_ns = util.batch_get(ns_buffer,buffer_idx) #torch tensor supports indexing with deque?
             batch[buffer_ns_locs] = batch_ns
         return batch
         
 
     def sample_idxs(self,batch_size):
-        batch_idxs = np.random.randint(self.size,size=batch_size)
+        batch_idxs = torch.randint(self.size,size=batch_size,dtype=torch.int64).to(self.device)
         if self.use_cer:
             batch_idxs[-1] = self.head
         return batch_idxs
@@ -63,12 +73,13 @@ class Buffer(Memory):
         return torch.gather(attr,-1,batch_idxs)
     
     def add_experience(self,state,action,reward,next_state,done):
+        #switch to float 16?
         self.head = (self.head + 1) % self.max_size
-        self.states[self.head] = state.astype(np.float16)
+        self.states[self.head] = state
         self.actions[self.head] = action
         self.rewards[self.head] = reward
         self.done[self.head] = done
-        self.ns_buffer.append(next_state.astype(np.float16))
+        self.ns_buffer.append(next_state)
         if self.size < self.max_size:
             self.size += 1
         self.seen_size += 1
@@ -91,45 +102,3 @@ class Buffer(Memory):
         """Adds data to the buffer"""
         self.add_experience(self,state,action,reward,next_state,done)
 
-class SumTree:
-    write = 0
-    def __init__(self,capacity):
-        self.data = np.zeros(capacity)
-        self.tree = np.zeros(2*capacity - 1)
-        self.capacity = capacity
-        self.n_entries = 0
-    def _retrieve(self,idx,s):
-        """Retrieves leaf with priority >= s in the tree"""
-        left = 2*idx + 1
-        right = 2*idx + 2
-        if idx >= len(self.tree):
-            return idx
-        if s <= self.tree[left]:
-            return self._retrieve(left,s)
-        else:
-            return self._retrieve(right,s - self.tree[left])
-    def update(self,idx,p):
-        change = p - self.tree[idx]
-        self.tree[idx] = p
-        self._propagate(idx,change)
-    def _propagate(self,idx,change):
-        parent = (idx - 1) //2
-        self.tree[parent] +=change
-        if parent != 0:
-            self._propagate(idx,change)
-    def add(self,p,data):
-        idx = self.capacity - 1 + self.write
-        self.data[self.write] = data
-        self.update(self.write,p)
-        self.write += 1
-
-        if self.write >= self.capacity:
-            self.write = 0
-    def total(self):
-        return self.tree[0]
-    
-    def get(self,s):
-        idx = self._retrieve(0,s)
-        dataIdx = idx - self.capacity + 1
-        return (idx,self.tree[idx],self.dataIdx[dataIdx])
-    

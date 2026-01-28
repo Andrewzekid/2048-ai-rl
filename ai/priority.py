@@ -1,5 +1,6 @@
 from ai.replay import Buffer
 from ai.memory import Memory
+import torch
 import ai.util as util
 import numpy as np
 import random
@@ -15,8 +16,8 @@ class PrioritizedExperienceReplay(Buffer):
         ])
         super().__init__(memory_spec,body)
         #TODO: add memory spec
-        self.epsilon = np.full((1,),self.epsilon)
-        self.alpha = np.full((1,),self.alpha)
+        self.epsilon = torch.full((1,),self.epsilon,device=self.device)
+        self.alpha = torch.full((1,),self.alpha,device=self.device)
 
         self.data_keys = ["states","actions","rewards","next_states","done","priorities"]
         self.reset()
@@ -38,12 +39,12 @@ class PrioritizedExperienceReplay(Buffer):
 
     def get_priority(self, error):
         '''Takes in the error of one or more examples and returns the proportional priority'''
-        return np.power(error + self.epsilon, self.alpha).squeeze()
+        return torch.pow(error + self.epsilon, self.alpha).squeeze()
 
     def sample_idxs(self, batch_size):
         '''Samples batch_size indices from memory in proportional to their priority.'''
-        batch_idxs = np.zeros(batch_size, dtype=np.int32)
-        tree_idxs = np.zeros(batch_size, dtype=np.int32)
+        batch_idxs = torch.zeros(batch_size,dtype=torch.long,device=self.device)
+        tree_idxs = torch.zeros(batch_size,dtype=torch.long,device=self.device)
 
         for i in range(batch_size):
             s = random.uniform(0, self.tree.total())
@@ -51,7 +52,7 @@ class PrioritizedExperienceReplay(Buffer):
             batch_idxs[i] = idx
             tree_idxs[i] = tree_idx
 
-        batch_idxs = np.asarray(batch_idxs).astype(int)
+        batch_idxs = batch_idxs.long()
         self.tree_idxs = tree_idxs
         if self.use_cer:  # add the latest sample
             batch_idxs[-1] = self.head
@@ -63,7 +64,7 @@ class PrioritizedExperienceReplay(Buffer):
         Assumes the relevant batch indices are stored in self.batch_idxs
         '''
         priorities = self.get_priority(errors)
-        assert len(priorities) == self.batch_idxs.size
+        assert len(priorities) == self.batch_idxs.numel(), f"Error between size of batch_idxs and priorities batch_idxs size: {self.batch_idxs.numel()} size of priorities: {len(priorities)}"
         for idx, p in zip(self.batch_idxs, priorities):
             self.priorities[idx] = p
         for p, i in zip(priorities, self.tree_idxs):
@@ -90,9 +91,10 @@ class SumTree:
     write = 0
 
     def __init__(self, capacity):
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.capacity = capacity
-        self.tree = np.zeros(2 * capacity - 1)  # Stores the priorities and sums of priorities
-        self.indices = np.zeros(capacity)  # Stores the indices of the experiences
+        self.tree = torch.zeros(2 * capacity - 1,dtype=torch.float32,device=self.device)  # Stores the priorities and sums of priorities
+        self.indices = torch.zeros(capacity,dtype=torch.long,device=self.device)  # Stores the indices of the experiences
 
     def _propagate(self, idx, change):
         parent = (idx - 1) // 2

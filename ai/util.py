@@ -3,12 +3,13 @@ from collections import deque
 import operator
 import torch
 import pydash as ps
+device = "cuda" if torch.cuda.is_available() else "cpu"
 def batch_get(arr,idxs):
     """Get a list of indexes from an array"""
     if isinstance(arr,(list,deque)):
         return np.array(operator.itemgetter(*idxs)(arr))
     elif isinstance(arr,torch.Tensor):
-        idxs = torch.tensor(idxs,dtype=torch.int64)
+        idxs = torch.tensor(idxs,dtype=torch.long,device=device)
         return batch_get_tensor(arr,idxs)
     else:
         return arr[idxs]
