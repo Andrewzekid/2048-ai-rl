@@ -8,6 +8,7 @@ from ai.policy import policy_factory
 import pdb
 from torch import distributions
 import logging
+from datetime import datetime
 import torch.multiprocessing as mp
 from tqdm import tqdm
 import ai.util as util
@@ -32,10 +33,9 @@ if __name__ == "__main__":
     collecting_data = True
     iterations = 0
     train_steps = 0
-
+    test_steps = 0
     nGames = 0
     Score = 0
-
 
     def collect_data(gb,trainer,policy):
         """performs one data collection step and adds it to the PER"""
@@ -69,17 +69,18 @@ if __name__ == "__main__":
 
             #Add eval code for the message displaying every 50 steps
             if(train_steps % 25== 0):
-                train_loss = 0
+                test_loss = 0
                 #Print eval message and log after every 1000 iterations
                 trainer.eval()
-                for i in tqdm(range(4),desc="Performing Evaluation Step: "):
+                for i in tqdm(range(NUM_BATCHES),desc="Performing Evaluation Step: "):
                     with torch.inference_mode():
                         batch = trainer.buffer.sample()
-                        train_loss += trainer.test_step(batch)
+                        test_loss += trainer.test_step(batch)
 
-                train_loss /= NUM_BATCHES #Avg loss per epoch per batch
+                test_loss /= NUM_BATCHES #Avg loss per epoch per batch
+                test_steps += 1
                 #Create new games
-                num_Games = 4
+                num_Games = 5
                 totalScore = 0
                 maxScore = 0
                 new_gb = GameBoard()
@@ -91,33 +92,34 @@ if __name__ == "__main__":
                             q = trainer.agent(trainer.one_hot(s).unsqueeze(0)).squeeze()
                             idx = torch.argmax(util.batch_get(q,valid_actions))
                             action = valid_actions[idx]
-                             #get the q values for the valid actions
-                        
+                             #get the q values for the valid actions 
                         move = new_gb.MOVES[action]
                         sn,move_made,r = move(s)
                         sn = gb.add_new_tile(sn)
                         assert move_made, f"[ERROR] In Evaluation step, no move was made. Q values: {action}"
                         new_gb.board = sn
                         new_gb.score += r
-                    
                     #Game over
                     score = new_gb.score
                     totalScore += score
                     maxScore = max(maxScore,score)
                     new_gb.reset()
 
+                #Logging functionality
                 avgScore = int(totalScore / num_Games)
-                msg = f"EPOCH {train_steps} | Train Loss: {(train_loss):.2f} | Average Score for past {num_Games} games: {avgScore}  | Max Score: {maxScore}"    
-                trainer.logging(f"{train_loss},{avgScore}") #Write as csv format
+                now = datetime.now()
+                msg = f"{now.strftime('%Y-%m-%d %H:%M:%S')} Test Epoch {test_steps} | Test Loss: {(test_loss):.2f} | Average Score for past {num_Games} games: {avgScore}  | Max Score: {maxScore}"    
+                trainer.log(msg=msg,loss=test_loss,score=avgScore)
                 print("[INFO] " + msg)
                 
             if(train_steps %50 == 0):
                 #Save the model weights every 10000 steps
                 filename = f"{train_steps}.pth"
                 trainer.save(filename) 
-                print(f"[INFO] Saving model weights to {filename}")
+                msg = f"[INFO] Saving model weights to {filename} \n Synchronizing Q and target Q networks"
+                print(msg)
+                trainer.log(msg=msg)
                 trainer.update_params() #sync targ Q net and Q net params
-                print(f"[INFO] Synchronizing Q and target Q networks")
         else:
             #Check game continuation
             if gb.has_valid_move():
@@ -137,7 +139,7 @@ if __name__ == "__main__":
             print(f"[INFO] PER Collected {num_data}/{BUFFER_SIZE} Experiences! Games Played: {nGames} Avg Score: {int(Score / nGames)}")
             if num_data > BUFFER_SIZE:
                 collecting_data = False
-
+    trainer.writer.close()
 
 
 

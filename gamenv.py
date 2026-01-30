@@ -24,7 +24,11 @@ class GameBoard:
         self.score = 0
         self.game_over = False
 
-    def initialize_game(self):
+    def initialize_game(self) -> torch.Tensor:
+        """Initializes the gameboard with 2 random tiles and returns it.
+        Returns:
+        board torch.Tensor (4,4)
+         """
         NUMBER_OF_SQUARES = self.CELL_COUNT * self.CELL_COUNT
         board = torch.zeros((NUMBER_OF_SQUARES,), dtype=torch.float32,device=self.device)
         initial_twos = np.random.default_rng().choice(NUMBER_OF_SQUARES, 2, replace=False)
@@ -32,7 +36,11 @@ class GameBoard:
         board = board.reshape((self.CELL_COUNT, self.CELL_COUNT))
         return board
 
-    def push_right(self,board):
+    def push_right(self,board) -> Tuple[torch.Tensor,bool]:
+        """Push all squares to the right
+        Returns:
+        new game board after all squares are pushed to the right and a boolean indicating whether the gameboard has changed or not
+        """
         new = torch.zeros((self.CELL_COUNT,self.CELL_COUNT),dtype=torch.float32,device=self.device)
         changed = False
         for row in range(self.CELL_COUNT):
@@ -45,7 +53,7 @@ class GameBoard:
                     cntr -=1
         return new,changed
 
-    def merge_elements(self,board: torch.Tensor):
+    def merge_elements(self,board: torch.Tensor) -> Tuple[torch.Tensor,int,bool]:
         changed = False
         score = 0
         for row in range(self.CELL_COUNT):
@@ -59,10 +67,11 @@ class GameBoard:
         return board,score,changed
     
 
-    def move(self,board,k):
+    def move(self,board,k) -> torch.Tensor:
         """Implements moving up/right/left/down
         :param board game board
-        :param k (int) How many times to rotate 90 Left: 2, right: 0 UP: -1 Down: 1"""
+        :param k (int) How many times to rotate 90 Left: 2, right: 0 UP: -1 Down: 1
+        """
         if k:
             board = torch.rot90(board,k)
 
@@ -118,12 +127,15 @@ class GameBoard:
         
         return board
 
-    def has_move(self,board):
-        """Copy of has_valid_move but takes in an extra board parameter"""
+    def has_move(self,board: torch.Tensor) -> bool:
+        """Determines whether a given gameboard has a valid move
+        Returns:
+        boolean value indicating whether or not there is a valid move
+        """
         return len(self.get_valid_moves(board)) != 0
 
     def has_valid_move(self) -> bool:
-        """Determines whether the player still has a valid move
+        """Determines whether the current gameboard has a valid move
         Returns: boolean value indicating if no valid moves (False) or has valid moves (True)
         """
         return len(self.get_valid_moves(self.board)) != 0

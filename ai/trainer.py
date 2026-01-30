@@ -13,6 +13,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch
 import torch.multiprocessing as mp
+from torch.utils.tensorboard import SummaryWriter
 
 from ai.replay import Buffer
 from ai.decay import LinearDecay
@@ -35,6 +36,8 @@ class Trainer:
         self.load_config()
         self.policy = policy_factory(self.action_selection,epsilon_start=self.epsilon,
         epsilon_end=self.epsilon_end, maxsteps=self.steps,trainer=self)
+
+        self.writer = SummaryWriter()
         self.all_tiles.to(self.device) #0 - 32768
 
         self.agent = kwargs.get("agent")
@@ -52,11 +55,14 @@ class Trainer:
             os.mkdir(save_folder_path)
         
         self.log_path = Path(self.log_path)
+        self.log_abspath = str(self.log_path.resolve())
+        self.clear() #clear the log files
         if not(self.log_path.exists()):
             #create the log folder if it does not exist
-            fp = open(str(self.log_path.resolve()),"w")
+            fp = open(self.log_abspath,"w")
             fp.write("")
             fp.close()
+        
 
         self.num_workers = int(os.cpu_count() * 0.75) #Only use a portion of cpus to avoid black screen
         #Gameplay queue
@@ -175,15 +181,27 @@ class Trainer:
         self.targNet.eval()
         self.agent.eval()
     
-    def logging(self,content:str):
-        """Implements logging behavior for training"""
-        with open(str(self.log_path.resolve()),"a") as f:
-            f.write(content)
+    def clear(self):
+        """Clears the log file before the start of training"""
+        with open(self.log_abspath,"w"):
+            f.write() #clear the log file
+    
+    def log(self,msg:str,test_loss:float=None,avgScore:float=None):
+        """logs the test_loss avgScore to the tensorboard
+        Args:
+        :param test_loss (float) test loss
+        :param avgScore (float) average score over test playouts
+        :param content (str) content to add to the log file
+        """
+        if test_loss and avgScore:
+            self.writer.add_scalar("Loss/train",test_loss,test_steps)
+            self.writer.add_scalar("Mean Reward",avgScore,test_steps)
+        with open(self.log_abspath,"a") as f:
+            f.write(msg + "\n")
 
     def visualize(self):
         """Visualize Training Results including train_loss and average_score"""
-        log_folder_path = self.log_path
-        fp = str(log_folder_path.resolve())
+        fp = self.log_abspath
         data = pd.read_csv(fp,header=None,names=["train_loss","average_score"])
         steps = np.arange(0,len(data),1)
         fig = plt.figure()

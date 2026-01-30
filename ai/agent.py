@@ -16,3 +16,4 @@ class RLAgent(nn.Module):
         d2 = F.relu(self.dense2(d1))
         output = self.output(d2)
         return output
+    

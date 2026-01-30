@@ -54,7 +54,6 @@ class Buffer(Memory):
             buffer_idx = ns_batch_idxs[buffer_ns_locs] - head - 1
             ns_batch_idxs[buffer_ns_locs] = 0
         ns_batch_idxs = ns_batch_idxs % max_size
-        print(f"ns_batch_idxs: {ns_batch_idxs}")
         batch = util.batch_get(states,ns_batch_idxs)
         if to_replace:
             batch_ns = util.batch_get(ns_buffer,buffer_idx) #torch tensor supports indexing with deque?
