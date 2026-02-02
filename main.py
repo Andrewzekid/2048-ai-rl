@@ -18,7 +18,7 @@ import torch
 #Key Parameters
 MAX_ITERATIONS = 4000000
 BUFFER_SIZE = 200000
-NUM_BATCHES = 4 #Number of batches to go through
+NUM_BATCHES = 5 #Number of batches to go through
 START_SIZE = BUFFER_SIZE//2
 POLICY = "boltzmann"
 if __name__ == "__main__":
@@ -56,13 +56,17 @@ if __name__ == "__main__":
     print("[INFO] Beginning gameplay \n Initializing Data Collection...")
     while iterations < MAX_ITERATIONS: #Check if gameover
         if (iterations % 4 == 0) and iterations > START_SIZE:
-            print(f"Beginning train_step! Train step: {train_steps}")
+           
             trainer.train_mode()
             #Parallel training 
             net = trainer.agent.share_memory()
+            train_loss = 0
             for i in tqdm(range(NUM_BATCHES),desc="Training Progress"):
                 batch = trainer.buffer.sample()
-                trainer.parallelize(trainer.train_step,args=(net,batch,))
+                train_loss += trainer.train_step(qnet=net,batch=batch)
+            train_loss = round(train_loss / NUM_BATCHES,2)
+            print(f"EPOCH {train_steps} | Train Loss {train_loss}")
+            log(mode="train",loss=train_loss,steps=train_steps)
             train_steps += 1
 
             #Add eval code for the message displaying every 50 steps
@@ -75,7 +79,7 @@ if __name__ == "__main__":
                         batch = trainer.buffer.sample()
                         test_loss += trainer.test_step(batch)
 
-                test_loss /= NUM_BATCHES #Avg loss per epoch per batch
+                test_loss = round(test_loss/NUM_BATCHES,2) #Avg loss per epoch per batch
                 test_steps += 1
                 #Create new games
                 num_Games = 5
@@ -107,8 +111,8 @@ if __name__ == "__main__":
                 #Logging functionality
                 avgScore = int(totalScore / num_Games)
                 now = datetime.now()
-                msg = f"{now.strftime('%Y-%m-%d %H:%M:%S')} Test Epoch {test_steps} | Test Loss: {(test_loss):.2f} | Average Score for past {num_Games} games: {avgScore}  | Max Score: {maxScore}"    
-                log(loss=test_loss,test_steps=test_steps,score=avgScore)
+                msg = f"{now.strftime('%Y-%m-%d %H:%M:%S')} Test Epoch {test_steps} | Test Loss: {test_loss} | Average Score for past {num_Games} games: {avgScore}  | Max Score: {maxScore}"    
+                log(mode="test",loss=test_loss,steps=test_steps,score=avgScore)
                 print("[INFO] " + msg)
                 
             if(train_steps %50 == 0):
