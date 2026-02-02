@@ -17,7 +17,7 @@ import pdb
 import torch
 #Key Parameters
 MAX_ITERATIONS = 4000000
-BUFFER_SIZE = 2000
+BUFFER_SIZE = 200000
 NUM_BATCHES = 4 #Number of batches to go through
 START_SIZE = BUFFER_SIZE//2
 POLICY = "boltzmann"
@@ -66,7 +66,7 @@ if __name__ == "__main__":
             train_steps += 1
 
             #Add eval code for the message displaying every 50 steps
-            if(train_steps % 5== 0):
+            if(train_steps % 25== 0):
                 test_loss = 0
                 #Print eval message and log after every 1000 iterations
                 trainer.eval()
@@ -111,13 +111,12 @@ if __name__ == "__main__":
                 log(loss=test_loss,test_steps=test_steps,score=avgScore)
                 print("[INFO] " + msg)
                 
-            if(train_steps %5 == 0):
+            if(train_steps %50 == 0):
                 #Save the model weights every 10000 steps
                 filename = f"{train_steps}.pth"
                 trainer.save(filename) 
                 msg = f"[INFO] Saving model weights to {filename} \n Synchronizing Q and target Q networks"
                 print(msg)
-                trainer.log(msg=msg)
                 trainer.update_params() #sync targ Q net and Q net params
         else:
             #Check game continuation

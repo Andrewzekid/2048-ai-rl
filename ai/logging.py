@@ -1,6 +1,6 @@
 from torch.utils.tensorboard import SummaryWriter
 sumwriter = SummaryWriter()
-def log(self,test_loss:float=None,test_steps:int=0,avgScore:float=None):
+def log(self,loss:float=None,test_steps:int=0,score:float=None):
     """logs the test_loss avgScore to the tensorboard
     Args:
     :param test_loss (float) test loss
