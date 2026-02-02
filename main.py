@@ -20,7 +20,6 @@ BUFFER_SIZE = 2000
 NUM_BATCHES = 4 #Number of batches to go through
 START_SIZE = BUFFER_SIZE//2
 POLICY = "boltzmann"
-EPOCHS = 10 #How many updates per batch
 if __name__ == "__main__":
     print("[INFO] Initializing Training... setting global variables")
     mp.set_start_method("spawn")
@@ -43,16 +42,14 @@ if __name__ == "__main__":
         a = policy.choice(gb) 
         move_func = gb.MOVES[a]
         s1,_,r = move_func(s)
+        r = float(r) #remove the pytorch tensor
         s1 = gb.add_new_tile(s1)
         gb.board = s1
         gb.score += r
         done = 0 if gb.has_valid_move() else 1
         s_oh = trainer.one_hot(s)
         s1_oh = trainer.one_hot(s1)
-        # pdb.set_trace()
         trainer.buffer.add_experience(s_oh,a,r,s1_oh,done)
-
-
 
     #Main loop
     print("[INFO] Beginning gameplay \n Initializing Data Collection...")
@@ -109,7 +106,7 @@ if __name__ == "__main__":
                 avgScore = int(totalScore / num_Games)
                 now = datetime.now()
                 msg = f"{now.strftime('%Y-%m-%d %H:%M:%S')} Test Epoch {test_steps} | Test Loss: {(test_loss):.2f} | Average Score for past {num_Games} games: {avgScore}  | Max Score: {maxScore}"    
-                trainer.log(msg=msg,loss=test_loss,score=avgScore)
+                trainer.log(msg=msg,loss=test_loss,test_steps=test_steps,score=avgScore)
                 print("[INFO] " + msg)
                 
             if(train_steps %50 == 0):

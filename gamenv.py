@@ -3,7 +3,7 @@ import torch
 from ai.trainer import Trainer
 from ai.agent import RLAgent
 import random
-from typing import List
+from typing import List,Tuple
 import pdb
 import ai.util as util
 import torch
@@ -21,7 +21,7 @@ class GameBoard:
     def reset(self):
         """Resets the game board and game parameters after the game is over"""
         self.board = self.initialize_game()
-        self.score = 0
+        self.score = 0.0
         self.game_over = False
 
     def initialize_game(self) -> torch.Tensor:
@@ -55,7 +55,7 @@ class GameBoard:
 
     def merge_elements(self,board: torch.Tensor) -> Tuple[torch.Tensor,int,bool]:
         changed = False
-        score = 0
+        score = 0.0
         for row in range(self.CELL_COUNT):
             cntr = self.CELL_COUNT - 1
             for col in range(self.CELL_COUNT - 1,0,-1):

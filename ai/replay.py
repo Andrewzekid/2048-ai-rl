@@ -3,6 +3,7 @@ import ai.util as util
 import numpy as np
 from collections import deque
 import torch
+import pdb
 class Buffer(Memory):
     """Class to keep track of the training data"""
     def __init__(self,memory_spec,body):
@@ -46,6 +47,7 @@ class Buffer(Memory):
         :param states (List[np.ndarray])
         :param ns_buffer deque()
         """
+        #Assume batch_idxs is a torch tensor
         ns_batch_idxs = (batch_idxs + ns_idx_offset) % max_size
         mask = (head < ns_batch_idxs) & (ns_batch_idxs <= head + ns_idx_offset)
         buffer_ns_locs = torch.where(mask)[0]
@@ -54,9 +56,11 @@ class Buffer(Memory):
             buffer_idx = ns_batch_idxs[buffer_ns_locs] - head - 1
             ns_batch_idxs[buffer_ns_locs] = 0
         ns_batch_idxs = ns_batch_idxs % max_size
-        batch = util.batch_get(states,ns_batch_idxs)
+        batch = torch.stack(util.batch_get_tensor(states,ns_batch_idxs))
         if to_replace:
-            batch_ns = util.batch_get(ns_buffer,buffer_idx) #torch tensor supports indexing with deque?
+            batch_ns = util.batch_get_tensor(ns_buffer,buffer_idx)
+            if self.ns_idx_offset > 1:
+                batch_ns = torch.stack(batch_ns) #torch tensor supports indexing with deque?
             batch[buffer_ns_locs] = batch_ns
         return batch
         
@@ -90,9 +94,12 @@ class Buffer(Memory):
         self.batch_idxs = self.sample_idxs(self.batch_size)
         batch = {}
         for k in self.data_keys:
+          
             if k == "next_states":
-                batch[k] = torch.tensor(self.sample_next_state(self.head,self.max_size,self.ns_idx_offset,
-                self.batch_idxs,self.states,self.ns_buffer),dtype=torch.float32,device=self.device)
+                batch[k] = self.sample_next_state(self.head,self.max_size,self.ns_idx_offset,self.batch_idxs,self.states,self.ns_buffer)
+            elif k in ["states","priorities"]:
+                #List of tensors, use the slice object
+                batch[k] = torch.stack(util.batch_get_tensor(getattr(self,k),self.batch_idxs))
             else:
                 batch[k] = torch.tensor(util.batch_get(getattr(self,k),self.batch_idxs),dtype=torch.float32,device=self.device)
         return batch

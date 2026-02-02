@@ -12,6 +12,7 @@ GAMMA = 0.995 #Future rewards discount rate
 BUFFER_SIZE = 2000
 POLICY = "boltzmann"
 UNIQUE_ENCODINGS = 16
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 available_setting = {
     "max_tile":32768,
     "max_reward":18,
@@ -20,7 +21,7 @@ available_setting = {
     "save_folder":SAVE_FOLDER,
     "board_enc_length":4,
     "unique_encodings":UNIQUE_ENCODINGS,
-    "all_tiles": torch.tensor([0] + [1 << x for x in range(1,UNIQUE_ENCODINGS)],dtype=torch.float32),
+    "all_tiles": torch.tensor([0] + [1 << x for x in range(1,UNIQUE_ENCODINGS)],dtype=torch.float32,device=DEVICE),
     "epsilon":EPSILON,
     "epsilon_end":0.1,
     "steps":400000,

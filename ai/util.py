@@ -1,6 +1,7 @@
 import numpy as np
 from collections import deque
 import operator
+from typing import List
 import torch
 import pydash as ps
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -8,8 +9,8 @@ def batch_get(arr,idxs):
     """Get a list of indexes from an array"""
     if isinstance(arr,(list,deque)):
         return np.array(operator.itemgetter(*idxs)(arr))
-    elif isinstance(arr,torch.Tensor):
-        idxs = torch.tensor(idxs,dtype=torch.long,device=device)
+    elif torch.is_tensor(arr[0]):
+        #idxs must be of type list or np.array, cannot be cuda tensor
         return batch_get_tensor(arr,idxs)
     else:
         return arr[idxs]
@@ -29,6 +30,10 @@ def get_class_name(obj, lower=False):
         class_name = class_name.lower()
     return class_name
 
-def batch_get_tensor(tensor,idxs,dim=0):
-    """Get a list of indexes from a tensor"""
-    return torch.index_select(tensor,dim=dim,index=idxs)
+
+def batch_get_tensor(lis:List[torch.Tensor],idxs:list):
+    """Gets a list of indexes from a list of tensors
+    :param lis List of torch tensors
+    :param idxs list or numpy.array
+    """
+    return operator.itemgetter(*idxs)(lis)

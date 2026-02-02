@@ -38,7 +38,6 @@ class Trainer:
         epsilon_end=self.epsilon_end, maxsteps=self.steps,trainer=self)
 
         self.writer = SummaryWriter()
-        self.all_tiles.to(self.device) #0 - 32768
 
         self.agent = kwargs.get("agent")
         self.targNet = kwargs.get("targNet")
@@ -59,10 +58,7 @@ class Trainer:
         self.clear() #clear the log files
         if not(self.log_path.exists()):
             #create the log folder if it does not exist
-            fp = open(self.log_abspath,"w")
-            fp.write("")
-            fp.close()
-        
+            with open(self.log_abspath,"w") as f: f.write("")
 
         self.num_workers = int(os.cpu_count() * 0.75) #Only use a portion of cpus to avoid black screen
         #Gameplay queue
@@ -85,6 +81,7 @@ class Trainer:
         """
         unique_encodings = self.all_tiles.view(-1,1,1) #There are log2(max_tile) + 1 different tiles. Include 0 for the +1
         board = board.unsqueeze(0)
+        # print(f"Device of board: {board.device} device of all_tiles: {unique_encodings.device}")
         enc = (unique_encodings == board).float()
         return enc
 
@@ -183,15 +180,16 @@ class Trainer:
     
     def clear(self):
         """Clears the log file before the start of training"""
-        with open(self.log_abspath,"w"):
-            f.write() #clear the log file
+        with open(self.log_abspath,"w") as f:
+            f.write("") #clear the log file
     
-    def log(self,msg:str,test_loss:float=None,avgScore:float=None):
+    def log(self,msg:str,test_loss:float=None,test_steps:int=0,avgScore:float=None):
         """logs the test_loss avgScore to the tensorboard
         Args:
         :param test_loss (float) test loss
         :param avgScore (float) average score over test playouts
         :param content (str) content to add to the log file
+        :param test_steps (int) number of test steps
         """
         if test_loss and avgScore:
             self.writer.add_scalar("Loss/train",test_loss,test_steps)
