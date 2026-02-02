@@ -3,6 +3,7 @@ import math
 import numpy as np
 import ai.util as util
 import random
+import torch
 class MCTSNode:
     """Monte Carlo Tree Search algorithm to play 2048. TODO: add dqn value function into action selection"""
     def __init__(self,state=None,parent=None,action=None,gb=None,agent=None,score=0,max_search_depth=20):
@@ -119,8 +120,7 @@ class MCTSNodeQ(MCTSNode):
         score=score,max_search_depth=max_search_depth)
         self.agent = agent
         with torch.inference_mode():
-                self.q_values = util.batch_get(self.agent(self.gb.one_hot(self.state).unsqueeze(0)),
-                self.untried_actions) #Only get the q values for the actions which can be taken
+                self.q_values = util.batch_get(self.agent(self.gb.one_hot(self.state).unsqueeze(0)),self.untried_actions) #Only get the q values for the actions which can be taken
     
     def get_best_child(self,c=1.4):
         for child in self.children:

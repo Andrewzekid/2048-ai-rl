@@ -56,17 +56,15 @@ class Buffer(Memory):
             buffer_idx = ns_batch_idxs[buffer_ns_locs] - head - 1
             ns_batch_idxs[buffer_ns_locs] = 0
         ns_batch_idxs = ns_batch_idxs % max_size
-        batch = torch.stack(util.batch_get_tensor(states,ns_batch_idxs))
+        batch =util.batch_get_tensor(states,ns_batch_idxs)
         if to_replace:
             batch_ns = util.batch_get_tensor(ns_buffer,buffer_idx)
-            if self.ns_idx_offset > 1:
-                batch_ns = torch.stack(batch_ns) #torch tensor supports indexing with deque?
             batch[buffer_ns_locs] = batch_ns
         return batch
         
 
     def sample_idxs(self,batch_size):
-        batch_idxs = torch.randint(self.size,size=batch_size,dtype=torch.int64).to(self.device)
+        batch_idxs = torch.randint(low=0,high=self.size,size=batch_size,dtype=torch.int64).to(self.device)
         if self.use_cer:
             batch_idxs[-1] = self.head
         return batch_idxs
@@ -99,9 +97,9 @@ class Buffer(Memory):
                 batch[k] = self.sample_next_state(self.head,self.max_size,self.ns_idx_offset,self.batch_idxs,self.states,self.ns_buffer)
             elif k in ["states","priorities"]:
                 #List of tensors, use the slice object
-                batch[k] = torch.stack(util.batch_get_tensor(getattr(self,k),self.batch_idxs))
+                batch[k] = util.batch_get_tensor(getattr(self,k),self.batch_idxs)
             else:
-                batch[k] = torch.tensor(util.batch_get(getattr(self,k),self.batch_idxs),dtype=torch.float32,device=self.device)
+                batch[k] = util.batch_get(getattr(self,k),self.batch_idxs)
         return batch
 
     def update(self,state,action,reward,next_state,done):

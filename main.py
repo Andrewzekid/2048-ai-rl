@@ -12,6 +12,7 @@ from datetime import datetime
 import torch.multiprocessing as mp
 from tqdm import tqdm
 import ai.util as util
+from ai.logging import log
 import pdb
 import torch
 #Key Parameters
@@ -65,7 +66,7 @@ if __name__ == "__main__":
             train_steps += 1
 
             #Add eval code for the message displaying every 50 steps
-            if(train_steps % 25== 0):
+            if(train_steps % 5== 0):
                 test_loss = 0
                 #Print eval message and log after every 1000 iterations
                 trainer.eval()
@@ -87,7 +88,8 @@ if __name__ == "__main__":
                         valid_actions = new_gb.get_valid_moves(s)
                         with torch.inference_mode():
                             q = trainer.agent(trainer.one_hot(s).unsqueeze(0)).squeeze()
-                            idx = torch.argmax(util.batch_get(q,valid_actions))
+                            valid_actions_tensor = torch.tensor(valid_actions,device=device,dtype=torch.long)
+                            idx = torch.argmax(util.batch_get(q,valid_actions_tensor))
                             action = valid_actions[idx]
                              #get the q values for the valid actions 
                         move = new_gb.MOVES[action]
@@ -106,10 +108,10 @@ if __name__ == "__main__":
                 avgScore = int(totalScore / num_Games)
                 now = datetime.now()
                 msg = f"{now.strftime('%Y-%m-%d %H:%M:%S')} Test Epoch {test_steps} | Test Loss: {(test_loss):.2f} | Average Score for past {num_Games} games: {avgScore}  | Max Score: {maxScore}"    
-                trainer.log(msg=msg,loss=test_loss,test_steps=test_steps,score=avgScore)
+                log(loss=test_loss,test_steps=test_steps,score=avgScore)
                 print("[INFO] " + msg)
                 
-            if(train_steps %50 == 0):
+            if(train_steps %5 == 0):
                 #Save the model weights every 10000 steps
                 filename = f"{train_steps}.pth"
                 trainer.save(filename) 

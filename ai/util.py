@@ -5,14 +5,20 @@ from typing import List
 import torch
 import pydash as ps
 device = "cuda" if torch.cuda.is_available() else "cpu"
-def batch_get(arr,idxs):
+def batch_get(arr,idxs,dim=0):
     """Get a list of indexes from an array"""
     if isinstance(arr,(list,deque)):
-        return np.array(operator.itemgetter(*idxs)(arr))
-    elif torch.is_tensor(arr[0]):
-        #idxs must be of type list or np.array, cannot be cuda tensor
-        return batch_get_tensor(arr,idxs)
-    else:
+        first = arr[0]
+        if torch.is_tensor(first):
+            #idxs must be of type list or np.array, cannot be cuda tensor. if it is a list of tensors, return a batch_get_tensor
+            return batch_get_tensor(arr,idxs)
+        elif isinstance(first,(int,float)): #list of ints or floats
+            return torch.tensor(operator.itemgetter(*idxs)(arr),device=device,dtype=torch.float32)
+        else:
+            return np.array(operator.itemgetter(*idxs)(arr))
+    elif torch.is_tensor(arr):
+        return torch.index_select(arr,dim=dim,index=idxs)            
+    else: #np array
         return arr[idxs]
     
 def set_attr(obj,attr_dict,keys=None):
@@ -36,4 +42,11 @@ def batch_get_tensor(lis:List[torch.Tensor],idxs:list):
     :param lis List of torch tensors
     :param idxs list or numpy.array
     """
-    return operator.itemgetter(*idxs)(lis)
+    res = operator.itemgetter(*idxs)(lis)
+    if torch.is_tensor(res):
+        return res
+    elif torch.is_tensor(res[0]): #possible errors: one iteger output
+        return torch.stack(res)
+    else:
+        return torch.tensor(res,device=device)
+

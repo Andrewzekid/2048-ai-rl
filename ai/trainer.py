@@ -13,7 +13,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch
 import torch.multiprocessing as mp
-from torch.utils.tensorboard import SummaryWriter
 
 from ai.replay import Buffer
 from ai.decay import LinearDecay
@@ -36,8 +35,6 @@ class Trainer:
         self.load_config()
         self.policy = policy_factory(self.action_selection,epsilon_start=self.epsilon,
         epsilon_end=self.epsilon_end, maxsteps=self.steps,trainer=self)
-
-        self.writer = SummaryWriter()
 
         self.agent = kwargs.get("agent")
         self.targNet = kwargs.get("targNet")
@@ -156,7 +153,7 @@ class Trainer:
         q_loss = self.loss_fn(action_q_preds,y)
         #Add prioritized experience replay code
         if "Prioritized" in util.get_class_name(self.buffer):
-            errors = (y - action_q_preds.detach()).abs().cpu()
+            errors = (y - action_q_preds.detach()).abs()
             self.buffer.update_priorities(errors)
         return q_loss
 
@@ -182,20 +179,6 @@ class Trainer:
         """Clears the log file before the start of training"""
         with open(self.log_abspath,"w") as f:
             f.write("") #clear the log file
-    
-    def log(self,msg:str,test_loss:float=None,test_steps:int=0,avgScore:float=None):
-        """logs the test_loss avgScore to the tensorboard
-        Args:
-        :param test_loss (float) test loss
-        :param avgScore (float) average score over test playouts
-        :param content (str) content to add to the log file
-        :param test_steps (int) number of test steps
-        """
-        if test_loss and avgScore:
-            self.writer.add_scalar("Loss/train",test_loss,test_steps)
-            self.writer.add_scalar("Mean Reward",avgScore,test_steps)
-        with open(self.log_abspath,"a") as f:
-            f.write(msg + "\n")
 
     def visualize(self):
         """Visualize Training Results including train_loss and average_score"""

@@ -3,6 +3,7 @@ from ai.memory import Memory
 import torch
 import ai.util as util
 import numpy as np
+import pdb
 import random
 class PrioritizedExperienceReplay(Buffer):
     def __init__(self,memory_spec,body):
@@ -39,6 +40,7 @@ class PrioritizedExperienceReplay(Buffer):
 
     def get_priority(self, error):
         '''Takes in the error of one or more examples and returns the proportional priority'''
+
         return torch.pow(error + self.epsilon, self.alpha).squeeze()
 
     def sample_idxs(self, batch_size):
@@ -71,23 +73,6 @@ class PrioritizedExperienceReplay(Buffer):
             self.tree.update(i, p)
 
 class SumTree:
-    '''
-    Helper class for PrioritizedReplay
-
-    This implementation is, with minor adaptations, Jaromír Janisch's. The license is reproduced below.
-    For more information see his excellent blog series "Let's make a DQN" https://jaromiru.com/2016/09/27/lets-make-a-dqn-theory/
-
-    MIT License
-
-    Copyright (c) 2018 Jaromír Janisch
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-    '''
     write = 0
 
     def __init__(self, capacity):
@@ -97,12 +82,9 @@ class SumTree:
         self.indices = torch.zeros(capacity,dtype=torch.long,device=self.device)  # Stores the indices of the experiences
 
     def _propagate(self, idx, change):
-        parent = (idx - 1) // 2
-
-        self.tree[parent] += change
-
-        if parent != 0:
-            self._propagate(parent, change)
+        while idx > 0:
+            idx = (idx - 1) // 2  # dont use recursion to prevent recursion limit exceeded
+            self.tree[idx] += change
 
     def _retrieve(self, idx, s):
         left = 2 * idx + 1

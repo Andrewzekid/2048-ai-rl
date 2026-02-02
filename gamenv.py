@@ -183,7 +183,8 @@ class GameBoard:
                 one_hot = torch.unsqueeze(trainer.one_hot(s_t),0).to(device)
                 q_vals = trainer.agent(one_hot).squeeze()
                 print(f"Available moves: {valid_moves} Q values: {q_vals}")
-                q_valid = util.batch_get(q_vals,valid_moves)
+                valid_moves_tensor = torch.tensor(valid_moves,device=self.device,dtype=torch.long)
+                q_valid = util.batch_get(q_vals,valid_moves_tensor)
                 a = valid_moves[torch.argmax(q_valid)]
                 move_func = self.MOVES[a]
                 s_t1,_,r_t = move_func(s_t)
