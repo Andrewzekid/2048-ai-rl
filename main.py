@@ -17,7 +17,7 @@ import pdb
 import torch
 #Key Parameters
 MAX_ITERATIONS = 4000000
-BUFFER_SIZE = 200000
+BUFFER_SIZE = 100000
 NUM_BATCHES = 5 #Number of batches to go through
 START_SIZE = BUFFER_SIZE//2
 POLICY = "boltzmann"

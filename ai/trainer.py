@@ -49,13 +49,6 @@ class Trainer:
         save_folder_path = str(Path(SAVE_FOLDER).resolve()) #convert to abspath
         if not os.path.exists(save_folder_path):
             os.mkdir(save_folder_path)
-        
-        self.log_path = Path(self.log_path)
-        self.log_abspath = str(self.log_path.resolve())
-        self.clear() #clear the log files
-        if not(self.log_path.exists()):
-            #create the log folder if it does not exist
-            with open(self.log_abspath,"w") as f: f.write("")
 
         self.num_workers = int(os.cpu_count() * 0.75) #Only use a portion of cpus to avoid black screen
         #Gameplay queue
@@ -175,30 +168,7 @@ class Trainer:
         self.targNet.eval()
         self.agent.eval()
     
-    def clear(self):
-        """Clears the log file before the start of training"""
-        with open(self.log_abspath,"w") as f:
-            f.write("") #clear the log file
 
-    def visualize(self):
-        """Visualize Training Results including train_loss and average_score"""
-        fp = self.log_abspath
-        data = pd.read_csv(fp,header=None,names=["train_loss","average_score"])
-        steps = np.arange(0,len(data),1)
-        fig = plt.figure()
-        ax1 = fig.add_subplot(1,2,1)
-        ax1.plot(steps,data["train_loss"])
-        ax1.set_xlabel("Train Steps")
-        ax1.set_ylabel("Train Loss")
-        ax1.set_title("Train Loss over time")
-        
-        ax2 = fig.add_subplot(1,2,2)
-        ax2.plot(steps,data["average_score"])
-        ax2.set_xlabel("Train Steps")
-        ax2.set_ylabel("Average Reward")
-        ax2.set_title("Reward over time")
-        plt.subplots_adjust(hspace=1)
-        plt.show()
 
     
 
