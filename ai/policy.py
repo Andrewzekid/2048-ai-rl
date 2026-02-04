@@ -27,10 +27,11 @@ class Policy:
         """
         s = gb.board
         trainer = self.trainer
+        net = trainer.net
         valid_moves = gb.get_valid_moves(s)
         with torch.inference_mode():
-            trainer.agent.eval()
-            q = trainer.agent(trainer.one_hot(s)).squeeze(0)
+            net.agent.eval()
+            q = net.agent(net.one_hot(s)).squeeze(0)
             q = q[valid_moves]         
             
         return q,valid_moves

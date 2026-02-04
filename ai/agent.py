@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
-class RLAgent(nn.Module):
+class CNN(nn.Module):
     def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(in_channels=16,kernel_size=(2,2),out_channels=256)

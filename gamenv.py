@@ -1,12 +1,13 @@
 import numpy as np
 import torch
 from ai.trainer import Trainer
-from ai.agent import RLAgent
+from ai.agent import CNN
 import random
 from typing import List,Tuple
 import pdb
 import ai.util as util
 import torch
+from ai.dqn import DQN
 #File for the game code
 CELL_COUNT = 4 #4x4
 DISTRIBUTION = np.array([2,2,2,2,2,2,2,2,2,4])
@@ -165,13 +166,15 @@ class GameBoard:
         :param n: number of turns to run the game for
         """
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        agent = RLAgent().to(device)
-        targNet = RLAgent().to(device)
-        trainer = Trainer(agent=agent,targNet=targNet)
-        trainer.load(weights_file)
+        dqn = DQN()
+        dqn.init_nets()
+        dqn.load(weights_file)
+        trainer = Trainer()
+        trainer.net = dqn
+
         while self.has_valid_move():
             with torch.inference_mode():
-                trainer.eval()
+                trainer.net.test_mode()
                 print("Game board: ")
                 print(f"Score: {self.score}")
                 self.display_board()
@@ -180,8 +183,8 @@ class GameBoard:
                 move_to_bin = {2:"Up",1:"Left",3:"Down",0:"Right"}
 
 
-                one_hot = torch.unsqueeze(trainer.one_hot(s_t),0).to(device)
-                q_vals = trainer.agent(one_hot).squeeze()
+                one_hot = torch.unsqueeze(trainer.net.one_hot(s_t),0).to(device)
+                q_vals = trainer.net.agent(one_hot).squeeze()
                 print(f"Available moves: {valid_moves} Q values: {q_vals}")
                 valid_moves_tensor = torch.tensor(valid_moves,device=self.device,dtype=torch.long)
                 q_valid = util.batch_get(q_vals,valid_moves_tensor)

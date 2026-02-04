@@ -67,5 +67,7 @@ class Config(dict):
             return e
 
 config = Config(available_setting)
-def conf():
+def conf(**kwargs):
+    for k in kwargs:
+        config[k] = kwargs.get(k) #If a dictionary with configs is provided, update the config
     return config

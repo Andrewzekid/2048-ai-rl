@@ -12,7 +12,7 @@ class MCTSNode:
         :parent parent node
         :param action (int) action taken to get to the current node
         :param gb GameBoard object
-        :param agent RLAgent object
+        :param agent CNN object
         """
         self.gb = gb #Gameboard object with utility classes
         self.agent = agent

@@ -105,4 +105,8 @@ class Buffer(Memory):
     def update(self,state,action,reward,next_state,done):
         """Adds data to the buffer"""
         self.add_experience(self,state,action,reward,next_state,done)
+    
+    def load_data(self):
+        """Loads SARS Tuples from data"""
+        raise NotImplementedError
 

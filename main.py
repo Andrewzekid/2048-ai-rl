@@ -1,5 +1,5 @@
 
-from ai.agent import RLAgent
+from ai.agent import CNN
 from ai.trainer import Trainer
 from gamenv import GameBoard
 import numpy as np
@@ -9,6 +9,8 @@ import pdb
 from torch import distributions
 import logging
 from datetime import datetime
+from dqn import DQN
+import argparse
 import torch.multiprocessing as mp
 from tqdm import tqdm
 import ai.util as util
@@ -21,12 +23,30 @@ BUFFER_SIZE = 100000
 NUM_BATCHES = 5 #Number of batches to go through
 START_SIZE = BUFFER_SIZE//2
 POLICY = "boltzmann"
-if __name__ == "__main__":
+LOAD = ""
+  
+def main():
+    parser = argparse.ArgumentParser(prog="train",description="training AI")
+    # Training hyperparameters
+    parser.add_argument('--batch-size', type=int, default=100000,
+                       help='Batch size for training')
+    parser.add_argument('--epochs', type=int, default=10,
+                       help='Number of training epochs')
+    parser.add_argument('--learning-rate', '--lr', type=float, default=0.001,
+                       help='Learning rate')
+    parser.add_argument('--steps', '--s', type=int, default=400000,
+                       help='Learning rate')
+    args = parser.parse_args()
+    config = conf(**args) #Initialize the config
+    trainer = Trainer(config=config)
+    #Load DQN
+    dqn = DQN()
+    dqn.init_nets()
+    if LOAD:
+        dqn.load(LOAD)
+    trainer.net = dqn
+    
     print("[INFO] Initializing Training... setting global variables")
-    mp.set_start_method("spawn")
-    trainer = Trainer()
-    trainer.init_nets()
-
     gb = GameBoard()
     policy = trainer.policy
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -37,88 +57,32 @@ if __name__ == "__main__":
     nGames = 0
     Score = 0
 
-    def collect_data(gb,trainer,policy):
-        """performs one data collection step and adds it to the PER"""
-        s = gb.board
-        a = policy.choice(gb) 
-        move_func = gb.MOVES[a]
-        s1,_,r = move_func(s)
-        r = float(r) #remove the pytorch tensor
-        s1 = gb.add_new_tile(s1)
-        gb.board = s1
-        gb.score += r
-        done = 0 if gb.has_valid_move() else 1
-        s_oh = trainer.one_hot(s)
-        s1_oh = trainer.one_hot(s1)
-        trainer.buffer.add_experience(s_oh,a,r,s1_oh,done)
-
     #Main loop
     print("[INFO] Beginning gameplay \n Initializing Data Collection...")
     while iterations < MAX_ITERATIONS: #Check if gameover
         if (iterations % 4 == 0) and iterations > START_SIZE:
-           
-            trainer.train_mode()
             #Parallel training 
-            net = trainer.agent.share_memory()
-            train_loss = 0
-            for i in tqdm(range(NUM_BATCHES),desc="Training Progress"):
-                batch = trainer.buffer.sample()
-                train_loss += trainer.train_step(qnet=net,batch=batch)
-            train_loss = round(train_loss / NUM_BATCHES,2)
+            train_loss = trainer.net.train()
             print(f"EPOCH {train_steps} | Train Loss {train_loss}")
             log(mode="train",loss=train_loss,steps=train_steps)
             train_steps += 1
 
             #Add eval code for the message displaying every 50 steps
             if(train_steps % 25== 0):
-                test_loss = 0
-                #Print eval message and log after every 1000 iterations
-                trainer.eval()
-                for i in tqdm(range(NUM_BATCHES),desc="Performing Evaluation Step: "):
-                    with torch.inference_mode():
-                        batch = trainer.buffer.sample()
-                        test_loss += trainer.test_step(batch)
-
-                test_loss = round(test_loss/NUM_BATCHES,2) #Avg loss per epoch per batch
+                test_loss = trainer.agent.eval()
                 test_steps += 1
-                #Create new games
-                num_Games = 5
-                totalScore = 0
-                maxScore = 0
-                new_gb = GameBoard()
-                for i in range(num_Games):
-                    while new_gb.has_valid_move():
-                        s = new_gb.board
-                        valid_actions = new_gb.get_valid_moves(s)
-                        with torch.inference_mode():
-                            q = trainer.agent(trainer.one_hot(s).unsqueeze(0)).squeeze()
-                            valid_actions_tensor = torch.tensor(valid_actions,device=device,dtype=torch.long)
-                            idx = torch.argmax(util.batch_get(q,valid_actions_tensor))
-                            action = valid_actions[idx]
-                             #get the q values for the valid actions 
-                        move = new_gb.MOVES[action]
-                        sn,move_made,r = move(s)
-                        sn = gb.add_new_tile(sn)
-                        assert move_made, f"[ERROR] In Evaluation step, no move was made. Q values: {action}"
-                        new_gb.board = sn
-                        new_gb.score += r
-                    #Game over
-                    score = new_gb.score
-                    totalScore += score
-                    maxScore = max(maxScore,score)
-                    new_gb.reset()
+                avgScore,maxScore = trainer.agent.simulate()
 
                 #Logging functionality
-                avgScore = int(totalScore / num_Games)
                 now = datetime.now()
                 msg = f"{now.strftime('%Y-%m-%d %H:%M:%S')} Test Epoch {test_steps} | Test Loss: {test_loss} | Average Score for past {num_Games} games: {avgScore}  | Max Score: {maxScore}"    
-                log(mode="test",loss=test_loss,steps=test_steps,score=avgScore)
+                trainer.log(mode="test",loss=test_loss,steps=test_steps,score=avgScore)
                 print("[INFO] " + msg)
                 
             if(train_steps %50 == 0):
                 #Save the model weights every 10000 steps
                 filename = f"{train_steps}.pth"
-                trainer.save(filename) 
+                trainer.agent.save(filename) 
                 msg = f"[INFO] Saving model weights to {filename} \n Synchronizing Q and target Q networks"
                 print(msg)
                 trainer.update_params() #sync targ Q net and Q net params
@@ -136,13 +100,11 @@ if __name__ == "__main__":
         iterations+=1
         trainer.decay()
         #Logging
-        num_data = len(trainer.buffer)
+        num_data = len(trainer.agent.buffer)
         if collecting_data and (num_data % 1000 == 0):
             print(f"[INFO] PER Collected {num_data}/{BUFFER_SIZE} Experiences! Games Played: {nGames} Avg Score: {int(Score / nGames)}")
             if num_data > BUFFER_SIZE:
                 collecting_data = False
-    trainer.writer.close()
-
-
-
-
+    print(f"[INFO] Finishing training... performing garbage collection")
+    trainer.sumwriter.flush()
+    trainer.sumwriter.close()
