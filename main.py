@@ -108,3 +108,6 @@ def main():
     print(f"[INFO] Finishing training... performing garbage collection")
     trainer.sumwriter.flush()
     trainer.sumwriter.close()
+
+if __name__ == "__main__":
+    main()

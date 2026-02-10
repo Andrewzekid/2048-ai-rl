@@ -206,6 +206,27 @@ class GameBoard:
                 self.reset()
                 break
 
+    def to_binary(self,board) -> str:
+        """Changes the board representation to a binary string for storage
+        Returns tensor of binaries (batch_size,16)
+        """
+        batch_size = board.shape[0]
+        positions = torch.tensor([
+        [60, 56, 52, 48],  # Row 0
+        [44, 40, 36, 32],  # Row 1
+        [28, 24, 20, 16],  # Row 2
+        [12,  8,  4,  0],  # Row 3
+    ], dtype=torch.int64)
+        positions_flat = positions.flatten()
+        board_flat = board.flatten(start_dim=1)
+        exponents = torch.zeros_like(board_flat,dtype=torch.int64)
+        nonzero_mask = board_flat > 0
+        exponents[nonzero_mask] = torch.log2(board_flat[nonzero_mask]).int()
+        binaries = torch.zeros(batch_size,dtype=torch.int64)
+        for i in range(16):
+            shift_amounts = positions_flat[i]
+            binaries |= (exponents[:,i].long() << shift_amounts)
+        return binaries
 
 
 

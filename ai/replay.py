@@ -3,6 +3,7 @@ import ai.util as util
 import numpy as np
 from collections import deque
 import torch
+import string
 import pdb
 class Buffer(Memory):
     """Class to keep track of the training data"""
@@ -12,6 +13,7 @@ class Buffer(Memory):
             "use_cer",
             "batch_size",
             "max_size",
+            "save_folder"
         ])
         #TODO: add memory spec
         self.batch_idxs = None
@@ -21,6 +23,7 @@ class Buffer(Memory):
         self.ns_idx_offset = self.body.env.num_envs if body['env']['is_venv'] else 1
         self.ns_buffer = deque(maxlen=self.ns_idx_offset)
 
+        #TODO: save folder implementation
         self.data_keys = ["states","actions","rewards","next_states","done"]
         self.reset()
     
@@ -88,7 +91,15 @@ class Buffer(Memory):
         # trainer.to_train = trainer.to_train or (self.head % trainer.training_frequency == 0)
 
     def sample(self):
-        """Samples a portion of (SARS) tuples from the buffer"""
+        """Samples a portion of (SARS) tuples from the buffer.
+        Sample results
+        s: (states, torch.Tensor(batch_size,16,4,4))
+        a: actions, torch.Tensor(batch_size,)
+        r: rewards, torch.Tensor(batch_size,)
+        s': new states, torch.Tensor(batch_size,16,4,4)
+        priorities: priorities in the sumtree, torch.Tensor(batch_size,)
+        dones: whether state is terminal state or not torch.Tensor(batch_size,)
+        """
         self.batch_idxs = self.sample_idxs(self.batch_size)
         batch = {}
         for k in self.data_keys:
@@ -110,3 +121,11 @@ class Buffer(Memory):
         """Loads SARS Tuples from data"""
         raise NotImplementedError
 
+    def save_data(self):
+        """Saves the data into pytorch tensors. The tensors will be located in the save folder"""
+        time = datetime.datetime.now()
+        alphabet = string.ascii_lowercase + string.ascii_uppercase()
+        time_str = time.strftime("%Y-%m-%d-")
+        filename = f"{time_str} {"".join(random.choice(alphabet,k=8))}.pth" #Create a random uuid
+        filepath = str((self.save_folder / filename).resolve())
+        return filepath
