@@ -127,10 +127,7 @@ class Buffer(Memory):
     def update(self,state,action,reward,next_state,done):
         """Adds data to the buffer"""
         self.add_experience(self,state,action,reward,next_state,done)
-    
-    def load_data(self):
-        """Loads SARS Tuples from data. Check the log file for the uuid of the latest save and then loads from that"""
-        raise NotImplementedError
+
     
     def save_data(self,save_keys:List[str]=["done","actions","rewards","states","next_states"] ):
         """
@@ -146,6 +143,7 @@ class Buffer(Memory):
         self.save_config()
         with open(str(self.save_file.resolve()),"a") as f:
             f.write(time_str + "-" + uuid) #Write the newest uuid into the save files
+        return uuid
 
     def save_tensors(self,save_keys:List[str]):
         """Saves the data into pytorch tensors. The tensors will be located in the save folder

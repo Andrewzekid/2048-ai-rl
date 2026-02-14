@@ -105,7 +105,10 @@ def main():
             print(f"[INFO] PER Collected {num_data}/{BUFFER_SIZE} Experiences! Games Played: {nGames} Avg Score: {int(Score / nGames)}")
             if num_data > BUFFER_SIZE:
                 collecting_data = False
-                trainer.buffer.save_data() #save the data
+                uuid = trainer.buffer.save_data() #save the data
+                trainer.net.save_folder = trainer.buffer.save_folder / uuid
+                trainer.net.save(filename="agent")
+
     print(f"[INFO] Finishing training... performing garbage collection")
     trainer.sumwriter.flush()
     trainer.sumwriter.close()
