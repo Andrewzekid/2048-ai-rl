@@ -9,13 +9,14 @@ def batch_get(arr,idxs,dim=0):
     """Get a list of indexes from an array"""
     if isinstance(arr,(list,deque)):
         first = arr[0]
+        res = operator.itemgetter(*idxs)(lis)
         if torch.is_tensor(first):
-            #idxs must be of type list or np.array, cannot be cuda tensor. if it is a list of tensors, return a batch_get_tensor
-            return batch_get_tensor(arr,idxs)
+            #idxs must be of type list or np.array, cannot be cuda tensor. if it is a list of tensors, return all the element tensors stacked together
+            return torch.stack(res)
         elif isinstance(first,(int,float)): #list of ints or floats
-            return torch.tensor(operator.itemgetter(*idxs)(arr),device=device,dtype=torch.float32)
+            return torch.tensor(res,device=device,dtype=torch.float32)
         else:
-            return np.array(operator.itemgetter(*idxs)(arr))
+            return np.array(res)
     elif torch.is_tensor(arr):
         return torch.index_select(arr,dim=dim,index=idxs)            
     else: #np array
@@ -36,17 +37,4 @@ def get_class_name(obj, lower=False):
         class_name = class_name.lower()
     return class_name
 
-
-def batch_get_tensor(lis:List[torch.Tensor],idxs:list):
-    """Gets a list of indexes from a list of tensors
-    :param lis List of torch tensors
-    :param idxs list or numpy.array
-    """
-    res = operator.itemgetter(*idxs)(lis)
-    if torch.is_tensor(res):
-        return res
-    elif torch.is_tensor(res[0]): #possible errors: one iteger output
-        return torch.stack(res)
-    else:
-        return torch.tensor(res,device=device)
 

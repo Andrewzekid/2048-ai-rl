@@ -1,9 +1,11 @@
 from ai.memory import Memory
 import ai.util as util
 import numpy as np
+from pathlib import Path
 from collections import deque
 import torch
 import string
+import json
 import pdb
 class Buffer(Memory):
     """Class to keep track of the training data"""
@@ -13,9 +15,10 @@ class Buffer(Memory):
             "use_cer",
             "batch_size",
             "max_size",
-            "save_folder"
+            "save_folder",
+            "save_file"
         ])
-        #TODO: add memory spec
+        #TODO: add memory spec save file and save folder
         self.batch_idxs = None
         self.size = 0
         self.seen_size = 0
@@ -26,6 +29,17 @@ class Buffer(Memory):
         #TODO: save folder implementation
         self.data_keys = ["states","actions","rewards","next_states","done"]
         self.reset()
+        #Error handling for save_folder and save_file
+        if not(self.save_folder.exists()): #Pathlib.path object
+            try:
+                self.save_folder.mkdir()
+            except Exception as e:
+                print(e)
+        
+        if not(self.save_file.exists()):
+            with open(str(self.save_file.resolve()),"w") as f:
+                f.write("") #Create a new file
+        
     
     def __len__(self) -> int:
         """Returns the number of experiences stored"""
@@ -106,9 +120,6 @@ class Buffer(Memory):
           
             if k == "next_states":
                 batch[k] = self.sample_next_state(self.head,self.max_size,self.ns_idx_offset,self.batch_idxs,self.states,self.ns_buffer)
-            elif k in ["states","priorities"]:
-                #List of tensors, use the slice object
-                batch[k] = util.batch_get_tensor(getattr(self,k),self.batch_idxs)
             else:
                 batch[k] = util.batch_get(getattr(self,k),self.batch_idxs)
         return batch
@@ -118,14 +129,101 @@ class Buffer(Memory):
         self.add_experience(self,state,action,reward,next_state,done)
     
     def load_data(self):
-        """Loads SARS Tuples from data"""
+        """Loads SARS Tuples from data. Check the log file for the uuid of the latest save and then loads from that"""
         raise NotImplementedError
-
-    def save_data(self):
-        """Saves the data into pytorch tensors. The tensors will be located in the save folder"""
+    
+    def save_data(self,save_keys:List[str]=["done","actions","rewards","states","next_states"] ):
+        """
+        Saves the SARS training data into the save folders.
+        Args:
+        :param save_keys keys to save
+        """
         time = datetime.datetime.now()
         alphabet = string.ascii_lowercase + string.ascii_uppercase()
         time_str = time.strftime("%Y-%m-%d-")
-        filename = f"{time_str} {"".join(random.choice(alphabet,k=8))}.pth" #Create a random uuid
-        filepath = str((self.save_folder / filename).resolve())
-        return filepath
+        uuid = "".join(random.choice(alphabet,k=8))
+        self.save_tensors(save_keys)
+        self.save_config()
+        with open(str(self.save_file.resolve()),"a") as f:
+            f.write(time_str + "-" + uuid) #Write the newest uuid into the save files
+
+    def save_tensors(self,save_keys:List[str]):
+        """Saves the data into pytorch tensors. The tensors will be located in the save folder
+        Args:
+        save_keys (List[str]): list of strings corresponding to the names of the keys to save.
+         For the states and new states, they should not be included because states and new states are saved as binary
+        """
+
+        #ADD create new folder functionality
+        new_folder = self.save_folder / uuid #todo, add a new place to store the latest saved uuids?
+        
+        try:
+            new_folder.mkdir()
+        except Exception as e:
+            print(f"Failed to create new folder to save pytorch tensors")
+            print(e)
+        
+        for k in save_keys:
+            filename = f"{uuid}-{k}.pth" #Create a random uuid
+            filepath = str((new_folder / filename).resolve())
+            idxs = torch.arange(0,self.size,device=self.device)
+            tensor = util.batch_get(arr=getattr(self,k),idxs=idxs) 
+            torch.save(filepath,tensor)
+        return uuid
+    
+    def load_data(self,uuid:str,save_keys:List[str]=["done","actions","rewards","states","next_states"]):
+        """Loads in the most recently saved data
+        Args:
+        :param uuid (str) uuid of the save file
+        :param save_keys List[str] names of the tensors to save
+        """
+        save_folder = self.save_folder / uuid
+        self.load_config()
+        for k in save_keys:
+            file_name = uuid + "-" + k + ".pth"
+            fp = str((save_folder / file_name).resolve())
+            try:
+                data = torch.load(fp)
+                if k in ["states","next_states"]:
+                    #Need to decompose stack of tensors into list of tensors
+                    #Need a config file with key parameters saved from last time, e.g, self.head, self.batch_size,self.size...etc
+                    split = torch.tensor_split(data,self.size,dim=0) 
+                    loaded = list(map(list,split)) #Map all to list
+                else:
+                    #need to convert tensors into the list
+                    size = data.shape[0] #length of the tensor
+                    diff = self.max_size - size
+                    loaded = list(data) + [None]*diff
+                setattr(self,k,loaded)
+            except Exception as e:
+                print("Error loading ",k," from filepath",fp)
+                print(e)
+    
+    def save_config(self,save_folder:Path,keys:List[str]=["size","seen_size","head","batch_size","max_size"]):
+        """Saves the configuration of the buffer to continue training
+        Args:
+        :param keys List[str] configuration parameters to save
+        :param save_folder Path pathlib Path object, path to the save_folder
+        """
+        config = {k:getattr(self,k) for k in keys}
+        fp = str((save_folder / "config.json").resolve())
+        try:
+            with open(fp, "w", encoding="utf-8") as f:
+                json.dump(config, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            print(e)
+
+    
+    def load_config(self,save_folder:Path):
+        """Loads the configuration file to continue training
+        Args:
+        :param save_folder Path pathlib Path object to the save_folder
+        """
+        fp = str((save_folder / "config.json").resolve())
+        try:
+            with open(fp,"r") as f:
+                config = json.load(f)
+            for k,v in config:
+                setattr(self,k,v) 
+        except Exception as e:
+            print(e)

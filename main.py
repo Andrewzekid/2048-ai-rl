@@ -105,6 +105,7 @@ def main():
             print(f"[INFO] PER Collected {num_data}/{BUFFER_SIZE} Experiences! Games Played: {nGames} Avg Score: {int(Score / nGames)}")
             if num_data > BUFFER_SIZE:
                 collecting_data = False
+                trainer.buffer.save_data() #save the data
     print(f"[INFO] Finishing training... performing garbage collection")
     trainer.sumwriter.flush()
     trainer.sumwriter.close()
