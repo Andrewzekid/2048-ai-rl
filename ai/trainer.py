@@ -3,7 +3,7 @@ import numpy as np
 from collections import deque
 from pathlib import Path
 import shutil
-from typing import List
+from typing import List,Tuple
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
@@ -29,7 +29,7 @@ SAVE_FOLDER = "./ckpt"
 LOG_FOLDER = "./data"
 class Trainer:
     """Trainer class responsible for training the 2048 ai"""
-    def __init__(self,config=Config,**kwargs):
+    def __init__(self,config,**kwargs):
         #TODO: create a config file / kwargs to take in all of the arguments, current impl is messy
         self.config = config
         self.device = "cuda" if torch.cuda.is_available() else "cpu"

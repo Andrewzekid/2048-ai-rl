@@ -10,6 +10,8 @@ import torch
 from ai.dqn import DQN
 #File for the game code
 CELL_COUNT = 4 #4x4
+ROW_MASK = np.uint64(0xFFFF)
+COL_MASK = np.uint64(0x000F000F000F000F)
 DISTRIBUTION = np.array([2,2,2,2,2,2,2,2,2,4])
 class GameBoard:
     def __init__(self,cell_count=CELL_COUNT,distribution=DISTRIBUTION):
@@ -205,30 +207,50 @@ class GameBoard:
                 self.game_over = True
                 self.reset()
                 break
+    
+    def from_binary(self,binaries):
+        """Converts binary representation into a board
+        Args:
+        :param binaries (batch_size,1) np.array, array of binaries
+        """
+        binaries = binaries.astype(np.uint64) #Convert to a consistent dtype
+        positions = np.arange(0,self.CELL_COUNT*self.CELL_COUNT,4,dtype=np.uint64)
+        #first reshape to batch_size,16
+        ncells = self.CELL_COUNT * self.CELL_COUNT
+        exponents = np.zeros_like((batch_size,ncells),dtype=np.uint64)
+        for i,shift in enumerate(positions):
+            exponents[:,i] = ((binaries[:] >> shift) & 0xF)
+        board = np.where(exponents == 0,0,1 << exponents)
+        board = board.reshape(batch_size,self.CELL_COUNT,self.CELL_COUNT) #will cause error if board is not CELL_COUNT X CELL_COUNT
+        return board
 
     def to_binary(self,board) -> str:
         """Changes the board representation to a binary string for storage
+        Args:
+        :param board Batch of board tensors (batch_size,4,4)
         Returns tensor of binaries (batch_size,16)
         """
-        batch_size = board.shape[0]
-        positions = torch.tensor([
+        batch_size = board.shape[0] #batch of boards
+        board = board.numpy().astype(np.uint64) #Ensure that the data type of the board is consistent
+        positions = np.array([
         [60, 56, 52, 48],  # Row 0
         [44, 40, 36, 32],  # Row 1
         [28, 24, 20, 16],  # Row 2
         [12,  8,  4,  0],  # Row 3
-    ], dtype=torch.int64)
+    ], dtype=np.uint64)
         positions_flat = positions.flatten()
         board_flat = board.flatten(start_dim=1)
-        exponents = torch.zeros_like(board_flat,dtype=torch.int64)
+        exponents = np.zeros_like(board_flat,dtype=np.uint64)
         nonzero_mask = board_flat > 0
-        exponents[nonzero_mask] = torch.log2(board_flat[nonzero_mask]).int()
-        binaries = torch.zeros(batch_size,dtype=torch.int64)
+        exponents[nonzero_mask] = np.log2(board_flat[nonzero_mask])
+        binaries = np.zeros(batch_size,dtype=np.uint64)
         for i in range(16):
             shift_amounts = positions_flat[i]
-            binaries |= (exponents[:,i].long() << shift_amounts)
+            binaries |= (exponents[:,i] << shift_amounts) #for all batches (the shape is batch_size,16), shift the binary left by shift_amounts bits
         return binaries
 
-
+    def save_binaries(self,s:torch.Tensor,a:torch.Tensor,r:int,s1):
+        raise NotImplementedError
 
     def player_mode(self):
         """Initializes the game loop for testing"""
@@ -258,9 +280,3 @@ class GameBoard:
                 self.game_over = True
                 self.reset()
                 break
-        
-    
-            
-
-
-
