@@ -280,3 +280,104 @@ class GameBoard:
                 self.game_over = True
                 self.reset()
                 break
+class BitBoard:
+    NIBBLE_MASK = np.uint64(0xF)
+    def merge_right(self):
+        raise NotImplementedError
+    
+    def get_cell(self,row,col):
+        pos = row *4 + col
+        value = (self.board >> (pos * 4)) & self.NIBBLE_MASK
+        return value
+    
+    def get_item(x,i:int):
+        """Obtains an item from a specific index in the bitboard O(1) time
+        Args:
+        x: bitboard
+        i: index
+        """
+        mask = 0xF << 4*((4-i-1))
+        x = x & mask
+        x = x >> 4*(4-i-1)
+        if x== 0:
+            return 0
+        return 2**x
+    
+    def reverse_row(row):
+        """Reverse the bits in a row
+        Args:
+        row: bits representing the current row
+        """
+        a_1 = (row & np.uint64(0xF000)) >> 12
+        a_2 = (row & np.uint64(0x0F00)) >> 4
+        a_3 = (row & np.uint64(0x00F0)) << 4
+        a_4 = (row & np.uint64(0x000F)) << 12
+        return a_1 | a_2 | a_3 | a_4
+    
+    def transpose_board(x):
+        """Transpose the bits in a board
+        Args:
+        x: bitboard
+        """
+        a_1 = x & np.uint64(0xF0F00F0FF0F00F0F)
+        a_2 = x & np.uint64(0x0000F0F00000F0F0)
+        a_3 = x & np.uint64(0x0F0F00000F0F0000)
+        a = a_1 | (a_2 << np.uint64(12)) | (a_3 >> np.uint64(12))
+        b1 = a & np.uint64(0xFF00FF0000FF00FF)
+        b2 = a & np.uint64(0x00FF00FF00000000)
+        b3 = a & np.uint64(0x00000000FF00FF00)
+        return b1 | (b2 >> np.uint64(24)) | (b3 << np.uint64(24))
+    
+    def merge_grid_row_right(row):
+        """Merges a grid to the right
+        Args:
+        row: Row containing the binary numbers
+        """
+        pos = 3
+        num = 0
+        for j in range(3,-1,-1):
+            if row[j] == 0:
+                continue
+            if num == 0:
+                num = row[j]
+            elif num == row[j]:
+                #Merge operation
+                row[pos] = num * 2
+                pos -= 1
+                num = 0
+            else:
+                #No merge operation, just move operation
+                if row[pos] != num:
+                    row[pos] = num
+                pos -= 1
+                num = row[j]
+        if num != 0:
+            if row[pos] != num:
+                row[pos] = num
+            pos -= 1
+        for j in range(pos+1):
+            if row[j] != 0:
+                row[j] = 0
+        return row
+    def count_empty(x):
+        """Uses bitwise operations to count the number of 1s in O(1) time
+        Args:
+        x: bitboard representation
+        """
+        m1 = np.uint64(0x3333333333333333)
+        m2 = np.uint64(0x5555555555555555)
+        m4 = np.uint64(0x0f0f0f0f0f0f0f0f)
+        m8 = np.uint64(0x00ff00ff00ff00ff)
+        m16 = np.uint64(0x0000ffff0000ffff)
+        m32 = np.uint64(0x00000000ffffffff)
+        x = (x & m1) + ((x >> np.uint64(1)) & m1)
+        x = (x & m2) + ((x >> np.uint64(2)) & m2)
+        x = (x & m4) + ((x >> np.uint64(4)) & m4)
+        x = (x & m8) + ((x >> np.uint64(8)) & m8)
+        x = (x & m16) + ((x >> np.uint64(16)) & m16)
+        x = (x & m32) + ((x >> np.uint64(32)) & m32)
+        return x
+
+    
+
+    

@@ -106,8 +106,8 @@ def main():
             if num_data > BUFFER_SIZE:
                 collecting_data = False
                 uuid = trainer.buffer.save_data() #save the data
-                trainer.net.save_folder = trainer.buffer.save_folder / uuid
-                trainer.net.save(filename="agent")
+                # trainer.net.save_folder = trainer.buffer.save_folder / uuid
+                # trainer.net.save(filename="agent")
 
     print(f"[INFO] Finishing training... performing garbage collection")
     trainer.sumwriter.flush()
