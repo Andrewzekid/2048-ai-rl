@@ -303,6 +303,13 @@ class BitBoard:
             return 0
         return 2**x
     
+    def convert_to_16_bit(row):
+        for i in range(4):
+            if row[i] != 0:
+                row[i] = int(math.log2(row[i]))
+            row[i] = row[i] << (4*(4-i-1))
+        return np.uint64(sum(row))
+    
     def reverse_row(row):
         """Reverse the bits in a row
         Args:
@@ -377,6 +384,42 @@ class BitBoard:
         x = (x & m16) + ((x >> np.uint64(16)) & m16)
         x = (x & m32) + ((x >> np.uint64(32)) & m32)
         return x
+
+    def convert_to_row(x) -> list[int]:
+        """Converts a bit pattern into an array of numbers
+        Args:
+        x: Bit pattern 
+        """
+        row = []
+        for i in range(4):
+            num = self.get_item(x,i)
+            row.append(i)
+        return row
+    
+    def convert_to_numpy(x) -> np.ndarray:
+        """Converts a bit pattern into a 2d numpy array
+        Args:
+        x: bit pattern
+
+        Returns:
+        np.ndarray(4x4)
+        """
+        row = np.array(self.convert_to_row(x)).reshape(4,4)
+        return row
+    def create_merge_lookup_tables():
+        merge_lookup_left,merge_lookup_right = {}
+        for i in range(2**16):
+            line = convert_to_row(i)
+            row = np.uint64(i)
+            merged = merge_grid_row_right(line)
+            result = convert_to_16_bit(merged)
+
+            rev_row = reverse_row(row)
+            rev_result = reverse_row(result)
+            merge_lookup_left[rev_row] = rev_result
+            merge_lookup_right[row] = result
+        return merge_lookup_left,merge_lookup_right
+
 
     
 
